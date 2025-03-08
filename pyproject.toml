@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project_name"
+version = "2025.01.01"
+requires-python = ">=3.11"
+description = "Give description of the project"
+dependencies = [
+  "dependency_1",
+  "dependency_2",
+]
+
+[tool.setuptools.package-dir]
+project_name = "project_name"
+
+[tool.setuptools.package-data]
+project_name = ["data/*.csv"]
+
+[project.urls]
+"Homepage" = "https://github.com/fortum/repo_name"
+"Documentation" = "https://confluence.fortum.com/display/LA008511/..."

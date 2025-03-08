@@ -1,0 +1,6 @@
+# Include only repository specific ignore settings
+# For user specific ignore settings, use '\.git\info\exclude'
+# or edit your local .gitignore without committing
+
+/.vscode/*
+**/__pycache__/*

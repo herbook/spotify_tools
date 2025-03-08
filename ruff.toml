@@ -1,0 +1,45 @@
+line-length = 120
+indent-width = 4
+
+[lint]
+select = ["ALL"]
+
+ignore = [
+    "ANN001",   # missing-type-function-argument
+    "ANN201",   # missing-return-type-undocumented-public-function
+	"ANN202",	# missing-return-type-private-function
+    "ANN204",   # missing-return-type-special-method
+    "COM812",   # missing-trailing-comma
+    "D100",     # undocumented-public-module
+    "D101",     # undocumented-public-class
+    "D102",     # undocumented-public-method
+    "D103",     # undocumented-public-function
+    "D104",     # undocumented-public-package
+    "D107",     # undocumented-public-init
+    "E501",     # line too long
+    "ERA001",   # commented-out-code
+    "FA100", 	# future-rewritable-type-annotation
+    "FBT002",   # boolean-default-value-positional-argument
+    "FBT003",   # boolean-positional-value-in-call
+    "PD002",    # pandas-use-of-inplace-argument
+    "PD010",    # pandas-use-of-dot-pivot-or-unstack
+    "PD011",    # pandas-use-of-dot-values
+    "PD013",    # pandas-use-of-dot-stack
+    "PD901",    # pandas-df-variable-name
+    "PLR2004",  # magic-value-comparison
+    "RET504",   # unnecessary-assign
+    "S605",     # start-process-with-a-shell
+    "T201",     # print found
+    ]
+
+fixable = ["ALL"]  # Allow fix for all enabled rules
+unfixable = []
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false  # Respect magic trailing commas
+line-ending = "auto"  # Automatically detect the appropriate line ending
+ 
+[lint.pydocstyle]
+convention = "google"
