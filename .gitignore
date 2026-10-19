@@ -6,3 +6,8 @@
 /.vscode/*
 **/__pycache__/*
 log/*
+seeds/*
+!seeds/seed_template.txt
+*.egg-info/
+build/
+dist/

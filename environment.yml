@@ -1,0 +1,9 @@
+name: spotify_tools
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  # Every package is installed by pip, from pyproject.toml
+  - pip:
+      - .

@@ -1,0 +1,34 @@
+# Seed file template. Copy it, rename the copy (e.g. seeds\my_seed.txt) and edit the copy.
+#
+# Songs:     one per line as "Artist - Title". Several artists: "Artist A, Artist B - Title".
+# Ignored:   blank lines and lines starting with #.
+# Settings:  optional lines in the form "key: value", anywhere in the file:
+#              criteria - what the new playlist should be like (genre, BPM range, rap or beat
+#                         style, era, mood, ...)
+#              name     - name of the new playlist (default: AI suggestions [<file name>])
+#              count    - how many songs the AI should suggest (default: 30)
+#            The command-line options --criteria, --name and --count override these.
+#
+# What to write in "criteria" (plain words, any of these; the AI weighs them in this order):
+#   genre / subgenre   boom bap, East Coast rap, UK garage, synthwave, ...
+#   mood / vibe        laid-back, aggressive, melancholic, uplifting, ...
+#   energy             low-key, driving, club-ready, ...
+#   tempo / groove     85-95 BPM, swung drums, half-time, four-on-the-floor, ...
+#   era / sound        90s, dusty and sample-based, polished modern production, ...
+#   vocals             smooth flow, female vocals, Finnish lyrics, ...
+#   instruments/themes jazz samples, heavy guitars, party songs, ...
+#   exclusions         no remixes, no autotune, no explicit lyrics, ...
+# Without criteria the AI infers what the seed songs have in common. Always applied: popularity is
+# ignored, and at most three songs per artist are suggested unless your criteria say otherwise.
+#
+# Run it from the project root:
+#   python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
+
+criteria: slow boom bap rap, 85-95 BPM, dusty drums, laid-back flow, 90s feel
+name: Chill boom bap
+count: 30
+
+# Seed songs (replace these examples with your own)
+Nas - N.Y. State of Mind
+Wu-Tang Clan - C.R.E.A.M.
+A Tribe Called Quest - Can I Kick It?
