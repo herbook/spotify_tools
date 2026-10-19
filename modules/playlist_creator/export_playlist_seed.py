@@ -13,11 +13,12 @@ from modules.spotify_api import extract_playlist_id, get_playlist_items, get_pla
 SEEDS_PATH = Path(__file__).resolve().parents[2] / "seeds"
 SEED_HEADER = """\
 # Seed file: one "Artist - Title" per line. Lines starting with # are ignored.
+# Source: Spotify playlist "{name}" ({id}), positions {start}-{end}
+
 # Optional settings, remove the leading # to use them:
 # criteria: describe what the new playlist should be like
 # name: name for the new playlist
 # count: how many songs to suggest
-# Source: Spotify playlist "{name}" ({id}), positions {start}-{end}
 """
 
 
