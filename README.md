@@ -60,7 +60,7 @@ On the first run a browser window opens and asks you to approve access. The tool
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model, `gemini-3.8-flash`, is available on the free tier, as is `gemini-3.5-flash-lite`. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits; if the model is overloaded, the script retries automatically.
+The default model, `gemini-3.8-flash`, is available on the free tier, as is `gemini-3.5-flash-lite`. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When the quota is used up, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If the model is overloaded, the script retries automatically.
 
 ## Usage
 
@@ -109,6 +109,8 @@ The options `--criteria`, `--count`, `--name` and `--model` override the setting
 ```powershell
 python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
 ```
+
+While it runs, the command window shows a status line and a live progress counter (chunks received and seconds). At the end it prints each song's result, a short summary of the playlist written by Gemini, the number of songs added and skipped, and the log path. A request that gets no data for 120 seconds is cancelled and retried.
 
 #### Ways to create a playlist
 

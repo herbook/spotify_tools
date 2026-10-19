@@ -38,7 +38,7 @@ def run_through_playlists(files, log_path):
                     playlist_name=playlist_name,
                     description=f"Created from file: {file.name}",
                 )
-                print(f"Playlist created: {playlist_name}")
+                print(f"\nPlaylist created: {playlist_name}")
                 playlist_log.write(f"{playlist_name}: {playlist_id}\n")
 
                 with Path.open(file, "r", encoding=ENCODING) as input_file:
