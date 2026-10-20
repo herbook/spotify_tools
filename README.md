@@ -74,7 +74,7 @@ Both steps take the folder that holds your Winamp exports as an argument, for ex
    python -m modules.winamp_to_spotify.playlist_parser <folder>
    ```
 
-2. **Create the playlists.** If all cleaned files in the `fixed` subfolder together have fewer than 10,000 songs (Spotify's limit per playlist), one private playlist named `Winamp imports [all files]` is created and the songs of all files are added to it, with duplicates across files dropped. Otherwise a private playlist named `Winamp imports [<file name>]` is created for each file, with duplicates dropped within each file. A song is added if Spotify has a close enough match, whichever version Spotify returns for a duplicate. To leave a file out, move it out of the `fixed` subfolder first.
+2. **Create the playlists.** If all cleaned files in the `fixed` subfolder together have fewer than 10,000 songs (Spotify's limit per playlist), one private playlist named `Winamp imports [all files] <time>` (the same `YYYYMMDD_HHMM` time as in the log file names) is created and the songs of all files are added to it, with duplicates across files dropped. Otherwise a private playlist named `Winamp imports [<file name>] <time>` is created for each file, with duplicates dropped within each file. A song is added if Spotify has a close enough match, whichever version Spotify returns for a duplicate. To leave a file out, move it out of the `fixed` subfolder first.
 
    ```powershell
    python -m modules.winamp_to_spotify.winamp_to_spotify <folder>
@@ -139,8 +139,8 @@ To get different results from the same seed, run it again with other `--criteria
 
 Logs are written under `log` in the project folder.
 
-- `log\winamp_to_spotify\`: per playlist created (`all_files` when merged, otherwise per input file), a log of added songs and one of songs that were not found or skipped as duplicates, plus a list of the created playlists with their IDs.
-- `log\playlist_creator\`: `<time>_[<seed name>]_ai_playlist_log.md`, a Markdown table with one row per suggested song: whether it was added or skipped, the song Gemini suggested, what Spotify returned (with a match score from 0 to 1) and Gemini's reason.
+- `log\winamp_to_spotify\`: per playlist created (`all_files` when merged, otherwise per input file), a log of added songs and one of songs that were not found or skipped as duplicates, plus a list of the created playlists with their links.
+- `log\playlist_creator\`: `<time>_[<seed name>]_ai_playlist_log.md`, a Markdown table with one row per suggested song: whether it was added or skipped, the song Gemini suggested, what Spotify returned (with a match score from 0 to 1) and Gemini's reason. The header has a link to the created playlist.
 
 Low match scores (around 0.6 to 0.8) are worth a look, because Spotify may have returned a different version or remix of the song.
 
@@ -157,8 +157,3 @@ Low match scores (around 0.6 to 0.8) are worth a look, because Spotify may have 
 Copyright (c) 2026 Herman Böök.
 
 This project is under the [PolyForm Strict License 1.0.0](LICENSE). In short, you may use the software for noncommercial purposes (personal use, noncommercial organizations), but you may not distribute it or make changes or new works based on it. Read the license for the exact terms.
-
-## Roadmap
-
-- [ ] Optionally add a playlist name prefix and a playlist link to the logs
-- [ ] Validate `--start` and `--end` in `export_playlist_seed`

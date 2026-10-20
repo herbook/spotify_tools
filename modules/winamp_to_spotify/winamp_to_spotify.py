@@ -12,14 +12,21 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from modules.spotify_api import add_songs_to_playlist, create_playlist, get_song_uris, load_auth, spotify_session
+from modules.spotify_api import (
+    add_songs_to_playlist,
+    create_playlist,
+    get_song_uris,
+    load_auth,
+    playlist_url,
+    spotify_session,
+)
 from modules.winamp_to_spotify.playlist_parser import ENCODING
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MAX_PLAYLIST_SONGS = 10_000  # Spotify's limit per playlist
 
 
-def build_playlists(files):
+def build_playlists(files, start_time):
     """Return (log name, playlist name, description, lines) for each playlist to create.
 
     One playlist for all files when their song count stays under Spotify's limit, otherwise one per file.
@@ -32,10 +39,12 @@ def build_playlists(files):
     total = sum(1 for _, lines in file_lines for line in lines if line.strip())
     if total < MAX_PLAYLIST_SONGS:
         all_lines = [line for _, lines in file_lines for line in lines]
-        return [("all_files", "Winamp imports [all files]", f"Created from {len(files)} files", all_lines)]
+        return [
+            ("all_files", f"Winamp imports [all files] {start_time}", f"Created from {len(files)} files", all_lines)
+        ]
 
     return [
-        (file.stem, f"Winamp imports [{file.stem}]", f"Created from file: {file.name}", lines)
+        (file.stem, f"Winamp imports [{file.stem}] {start_time}", f"Created from file: {file.name}", lines)
         for file, lines in file_lines
     ]
 
@@ -48,7 +57,7 @@ def run_through_playlists(files, log_path):
     log_playlists = log_path / f"{start_time}_added_playlists_log.txt"
 
     with Path.open(log_playlists, "a", encoding="ISO-8859-1") as playlist_log:
-        for log_name, playlist_name, description, lines in build_playlists(files):
+        for log_name, playlist_name, description, lines in build_playlists(files, start_time):
             log_songs = log_path / f"{start_time}_[{log_name}]_added_songs_log.txt"
             log_not_found = log_path / f"{start_time}_[{log_name}]_not_found_log.txt"
             with (
@@ -62,7 +71,7 @@ def run_through_playlists(files, log_path):
                     description=description,
                 )
                 print(f"\nPlaylist created: {playlist_name}")
-                playlist_log.write(f"{playlist_name}: {playlist_id}\n")
+                playlist_log.write(f"{playlist_name}: {playlist_url(playlist_id)}\n")
 
                 chunk_size = 10
                 seen_songs = set()

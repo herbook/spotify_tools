@@ -23,6 +23,7 @@ from modules.spotify_api import (
     exact_track_key,
     get_song_uris,
     load_auth,
+    playlist_url,
     spotify_session,
 )
 
@@ -184,6 +185,7 @@ def build_log(  # noqa: PLR0913
     criteria: str,
     model: str,
     playlist_name: str | None,
+    playlist_link: str | None,
     summary: str,
     rows: list[tuple[str, str, str, str]],
 ) -> str:
@@ -195,7 +197,7 @@ def build_log(  # noqa: PLR0913
         f"- **Seed:** {seed_name}",
         f"- **Criteria:** {criteria}",
         f"- **Model:** {model}",
-        f"- **Playlist:** {playlist_name or 'not created'}",
+        f"- **Playlist:** {f'[{playlist_name}]({playlist_link})' if playlist_link else 'not created'}",
         f"- **Songs:** {added} added, {len(rows) - added} skipped",
         f"- **Summary from Gemini:** {' '.join(summary.split())}",
         "",
@@ -235,6 +237,7 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     seen = seed_keys(songs=seed.songs)
     uris = []
     rows = []
+    playlist_link = None
     for suggestion in suggestions:
         suggested = f"{suggestion.artist} - {suggestion.title}"
         found, not_found = get_song_uris(
@@ -253,9 +256,10 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
             playlist_name=name,
             description=re.split(r"(?<=[.!?])\s+", answer.summary.strip())[0][:300],
         )
+        playlist_link = playlist_url(playlist_id)
         for i in range(0, len(uris), MAX_ADD_BATCH):
             add_songs_to_playlist(session=session, playlist_id=playlist_id, song_uri=uris[i : i + MAX_ADD_BATCH])
-        print(f"\nPlaylist created: {name} ({len(uris)} songs)")
+        print(f"\nPlaylist created: {name} ({len(uris)} songs)\n{playlist_link}")
     else:
         print("No songs matched on Spotify, so no playlist was created")
 
@@ -267,7 +271,8 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
         seed_name=seed_path.name,
         criteria=criteria,
         model=model,
-        playlist_name=name if uris else None,
+        playlist_name=name,
+        playlist_link=playlist_link,
         summary=answer.summary,
         rows=rows,
     )

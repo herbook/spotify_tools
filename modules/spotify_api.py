@@ -61,6 +61,10 @@ def create_playlist(session, user_id, playlist_name, description):
     return playlist["id"]
 
 
+def playlist_url(playlist_id):
+    return f"https://open.spotify.com/playlist/{playlist_id}"
+
+
 def normalize(text: str) -> str:
     """Lowercase, strip accents and punctuation, and collapse whitespace for comparison."""
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
