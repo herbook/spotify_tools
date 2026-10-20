@@ -31,7 +31,7 @@ DEFAULT_COUNT = 30
 DEFAULT_CRITERIA = "similar to the seed songs"
 MAX_ADD_BATCH = 100  # Spotify accepts at most 100 items per add request
 MAX_GEMINI_ATTEMPTS = 5
-GEMINI_TIMEOUT_SECONDS = 120  # Longest silence allowed while waiting for Gemini's response data
+GEMINI_TIMEOUT_SECONDS = 500  # Longest silence allowed while waiting for Gemini's response data
 SYSTEM_INSTRUCTION = (
     "You are a music expert who builds playlists. Suggest only real songs that you are confident exist, "
     "using the exact artist and title. Never suggest a track that is already in the seed list; "
