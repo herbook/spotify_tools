@@ -1,4 +1,4 @@
-"""Create a Spotify playlist of AI-suggested songs based on a seed file.
+r"""Create a Spotify playlist of AI-suggested songs based on a seed file.
 
 Sends the seed songs and your criteria (genre, BPM, style, mood, ...) to Google Gemini, looks up each
 suggested song on Spotify to weed out invented ones, skips the seed songs and duplicates, and adds
@@ -212,7 +212,8 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     """Create a private Spotify playlist of songs that Gemini suggests for the seed file."""
     seed = read_seed(path=seed_path)
     if not seed.songs:
-        raise SystemExit(f"No songs found in {seed_path}")
+        msg = f"No songs found in {seed_path}"
+        raise SystemExit(msg)
 
     criteria = criteria or seed.settings.get("criteria") or DEFAULT_CRITERIA
     count = count or int(seed.settings.get("count") or DEFAULT_COUNT)
@@ -221,7 +222,8 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     auth = load_auth(Path.home() / ".spotipy")
     gemini_key = auth.get("GEMINI_API_KEY")
     if not gemini_key:
-        raise SystemExit("Add a GEMINI_API_KEY=... line to ~/.spotipy")
+        msg_0 = "Add a GEMINI_API_KEY=... line to ~/.spotipy"
+        raise SystemExit(msg_0)
 
     answer = suggest_or_exit(
         api_key=gemini_key, model=model, prompt=build_prompt(songs=seed.songs, criteria=criteria, count=count)
@@ -242,7 +244,7 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
             uris.append(uri)
             rows.append(("ADDED", suggested, result_text(entry), suggestion.reason))
         for entry in not_found:
-            rows.append(("SKIPPED", suggested, result_text(entry), suggestion.reason))
+            rows.append(("SKIPPED", suggested, result_text(entry), suggestion.reason))  # noqa: PERF401
 
     if uris:
         playlist_id = create_playlist(
@@ -257,7 +259,7 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     else:
         print("No songs matched on Spotify, so no playlist was created")
 
-    start_time = datetime.now().strftime("%Y%m%d_%H%M")
+    start_time = datetime.now().astimezone().strftime("%Y%m%d_%H%M")
     log_path = PROJECT_ROOT / "log" / "playlist_creator"
     log_path.mkdir(exist_ok=True, parents=True)
     log_file = log_path / f"{start_time}_[{seed_path.stem}]_ai_playlist_log.md"
