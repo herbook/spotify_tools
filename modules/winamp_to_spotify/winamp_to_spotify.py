@@ -1,8 +1,10 @@
 r"""Create Spotify playlists from the cleaned Winamp playlist files.
 
 Takes each '<name>_fixed.txt' written by playlist_parser.py, searches Spotify for every song, and
-adds the best matches to a new private playlist. Writes logs of added songs and of songs that
-were not found or skipped as duplicates to the 'log\winamp_to_spotify' folder.
+adds the best matches to a new private playlist. If all files together have fewer than 10,000 songs,
+they are merged into one playlist without duplicates; otherwise each file gets its own playlist.
+Writes logs of added songs and of songs that were not found or skipped as duplicates to the
+'log\winamp_to_spotify' folder.
 """
 
 import argparse
@@ -14,6 +16,28 @@ from modules.spotify_api import add_songs_to_playlist, create_playlist, get_song
 from modules.winamp_to_spotify.playlist_parser import ENCODING
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MAX_PLAYLIST_SONGS = 10_000  # Spotify's limit per playlist
+
+
+def build_playlists(files):
+    """Return (log name, playlist name, description, lines) for each playlist to create.
+
+    One playlist for all files when their song count stays under Spotify's limit, otherwise one per file.
+    """
+    file_lines = []
+    for file in files:
+        with Path.open(file, "r", encoding=ENCODING) as input_file:
+            file_lines.append((file, input_file.readlines()))
+
+    total = sum(1 for _, lines in file_lines for line in lines if line.strip())
+    if total < MAX_PLAYLIST_SONGS:
+        all_lines = [line for _, lines in file_lines for line in lines]
+        return [("all_files", "Winamp imports [all files]", f"Created from {len(files)} files", all_lines)]
+
+    return [
+        (file.stem, f"Winamp imports [{file.stem}]", f"Created from file: {file.name}", lines)
+        for file, lines in file_lines
+    ]
 
 
 def run_through_playlists(files, log_path):
@@ -24,25 +48,21 @@ def run_through_playlists(files, log_path):
     log_playlists = log_path / f"{start_time}_added_playlists_log.txt"
 
     with Path.open(log_playlists, "a", encoding="ISO-8859-1") as playlist_log:
-        for file in files:
-            log_songs = log_path / f"{start_time}_[{file.stem}]_added_songs_log.txt"
-            log_not_found = log_path / f"{start_time}_[{file.stem}]_not_found_log.txt"
+        for log_name, playlist_name, description, lines in build_playlists(files):
+            log_songs = log_path / f"{start_time}_[{log_name}]_added_songs_log.txt"
+            log_not_found = log_path / f"{start_time}_[{log_name}]_not_found_log.txt"
             with (
                 Path.open(log_songs, "a", encoding="utf-8") as song_log,
                 Path.open(log_not_found, "a", encoding="utf-8") as not_found_log,
             ):
-                playlist_name = f"Winamp imports [{file.stem}]"
                 playlist_id = create_playlist(
                     session=session,
                     user_id=session.me()["id"],
                     playlist_name=playlist_name,
-                    description=f"Created from file: {file.name}",
+                    description=description,
                 )
                 print(f"\nPlaylist created: {playlist_name}")
                 playlist_log.write(f"{playlist_name}: {playlist_id}\n")
-
-                with Path.open(file, "r", encoding=ENCODING) as input_file:
-                    lines = input_file.readlines()
 
                 chunk_size = 10
                 seen_songs = set()
