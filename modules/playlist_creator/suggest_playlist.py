@@ -269,11 +269,10 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
         rows=rows,
     )
     log_file.write_text(log_text, encoding="utf-8")
-    for status, suggested, result, reason in rows:
-        print(f"{status} {suggested} -> {result} | {reason}")
+
     added = sum(1 for status, *_ in rows if status == "ADDED")
     print(f"\nSummary from Gemini: {answer.summary}")
-    print(f"{added} added, {len(rows) - added} skipped")
+    print(f"\n{added} added, {len(rows) - added} skipped")
     print(f"Log: {log_file}")
 
 
