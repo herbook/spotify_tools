@@ -6,6 +6,7 @@ the matches to a new private playlist. A log of added and skipped songs, with re
 """
 
 import argparse
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -248,7 +249,7 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
             session=session,
             user_id=session.me()["id"],
             playlist_name=name,
-            description=criteria[:300],
+            description=re.split(r"(?<=[.!?])\s+", answer.summary.strip())[0][:300],
         )
         for i in range(0, len(uris), MAX_ADD_BATCH):
             add_songs_to_playlist(session=session, playlist_id=playlist_id, song_uri=uris[i : i + MAX_ADD_BATCH])
