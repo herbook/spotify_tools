@@ -18,7 +18,6 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 - [Logs](#logs)
 - [Notes and limits](#notes-and-limits)
 - [License](#license)
-- [Roadmap](#roadmap)
 
 ## Installation
 
@@ -68,13 +67,16 @@ The default model, `gemini-3.8-flash`, is available on the free tier, as is `gem
 
 Both steps take the folder that holds your Winamp exports as an argument, for example `C:\Music\playlists`.
 
-1. **Clean the exports.** This reads every file in that folder, removes numbering, durations, file extensions and duplicates, and writes one `<name>_fixed.txt` per file into a `fixed` subfolder. Check these files and fix them by hand if needed.
+1. **Clean the exports.** This reads every file in that folder, removes numbering, durations, file extensions and duplicates, and writes one `<name>_<ext>_fixed.txt` per file (for example `playlist_htm_fixed.txt`) into a `fixed` subfolder. Check these files and fix them by hand if needed.
 
    ```powershell
    python -m modules.winamp_to_spotify.playlist_parser <folder>
    ```
 
-2. **Create the playlists.** If all cleaned files in the `fixed` subfolder together have fewer than 10,000 songs (Spotify's limit per playlist), one private playlist named `Winamp imports [all files] <time>` (the same `YYYYMMDD_HHMM` time as in the log file names) is created and the songs of all files are added to it, with duplicates across files dropped. Otherwise a private playlist named `Winamp imports [<file name>] <time>` is created for each file, with duplicates dropped within each file. A song is added if Spotify has a close enough match, whichever version Spotify returns for a duplicate. To leave a file out, move it out of the `fixed` subfolder first.
+2. **Create the playlists.**
+   - If all cleaned files in the `fixed` subfolder together have fewer than 10,000 songs (Spotify's limit per playlist), one private playlist `Winamp imports [all files] <time>` is created with the songs of all files, and a song that appears in several files is added once. `<time>` is the same `YYYYMMDD_HHMM` as in the log file names.
+   - Otherwise, a private playlist `Winamp imports [<name>_<ext>_fixed] <time>` is created for each file, and duplicates are dropped within each file.
+   - A song is added only if Spotify has a close enough match. To leave a file out, move it out of the `fixed` subfolder first.
 
    ```powershell
    python -m modules.winamp_to_spotify.winamp_to_spotify <folder>
@@ -110,7 +112,7 @@ The options `--criteria`, `--count`, `--name` and `--model` override the setting
 python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
 ```
 
-While it runs, the command window shows a status line and a live progress counter (chunks received and seconds). At the end it prints each song's result, a short summary of the playlist written by Gemini, the number of songs added and skipped, and the log path. A request that gets no data for 120 seconds is cancelled and retried.
+While it runs, the command window shows a live progress counter and any songs that were not found or skipped. At the end it prints the playlist link, Gemini's summary of the playlist, the number of songs added and skipped, and the log path. A request that gets no data for 500 seconds is cancelled and retried.
 
 #### Where the seed songs come from
 
