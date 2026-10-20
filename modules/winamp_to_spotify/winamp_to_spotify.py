@@ -1,8 +1,8 @@
-"""Create Spotify playlists from the cleaned Winamp playlist files.
+r"""Create Spotify playlists from the cleaned Winamp playlist files.
 
 Takes each '<name>_fixed.txt' written by playlist_parser.py, searches Spotify for every song, and
 adds the best matches to a new private playlist. Writes logs of added songs and of songs that
-were not found or skipped as duplicates to the 'log\\winamp_to_spotify' folder.
+were not found or skipped as duplicates to the 'log\winamp_to_spotify' folder.
 """
 
 import argparse
@@ -20,7 +20,7 @@ def run_through_playlists(files, log_path):
     auth = load_auth(Path.home() / ".spotipy")
     session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
 
-    start_time = datetime.now().strftime("%Y%m%d_%H%M")
+    start_time = datetime.now().astimezone().strftime("%Y%m%d_%H%M")
     log_playlists = log_path / f"{start_time}_added_playlists_log.txt"
 
     with Path.open(log_playlists, "a", encoding="ISO-8859-1") as playlist_log:
