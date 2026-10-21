@@ -9,6 +9,8 @@ Two tools that create private Spotify playlists:
 
 Both tools use the Spotify Web API through `spotipy`, with the shared helpers in `modules/spotify_api.py`. Every run writes a log (see [Logs](#logs)).
 
+![Playlist creator window](assets/gui.png)
+
 ## Table of Contents
 
 - [Installation](#installation)
