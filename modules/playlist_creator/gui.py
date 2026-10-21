@@ -38,7 +38,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
-    QSizePolicy,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
@@ -281,7 +280,7 @@ class SpinningRecord(QWidget):
         self.angle = (self.angle + self.DEGREES_PER_FRAME) % 360
         self.update()
 
-    def paintEvent(self, event) -> None:  # noqa: ANN001, ARG002, N802
+    def paintEvent(self, event) -> None:  # noqa: ARG002, N802
         """Draw the record on a 100 x 100 grid, turned by the current angle."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -321,6 +320,12 @@ class MainWindow(QWidget):
         self.log_file = None
         self.auth = load_saved_auth()
 
+        self.build_widgets()
+        self.build_layout()
+        self.refresh_models()
+
+    def build_widgets(self) -> None:
+        """Create the controls and connect their actions."""
         terminal_font = QFont()
         terminal_font.setFamilies(TERMINAL_FONTS)
         terminal_font.setPointSize(11)
@@ -354,6 +359,8 @@ class MainWindow(QWidget):
         self.result_label.linkActivated.connect(self.open_link)
         self.spinner = SpinningRecord()
 
+    def build_layout(self) -> None:
+        """Arrange the controls: URL and seed buttons, seed editor, action row, output view and spinner."""
         url_row = QHBoxLayout()
         url_row.addWidget(self.url_input, alignment=Qt.AlignmentFlag.AlignTop)
         seed_buttons = QVBoxLayout()
@@ -376,8 +383,6 @@ class MainWindow(QWidget):
         bottom_row.addWidget(self.result_label, stretch=1)
         bottom_row.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         layout.addLayout(bottom_row)
-
-        self.refresh_models()
 
     def refresh_models(self) -> None:
         """Load the available Gemini models into the dropdown when a Gemini key is set."""
