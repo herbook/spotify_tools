@@ -7,7 +7,7 @@
 **/__pycache__/*
 log/*
 seeds/*
-!seeds/seed_template.txt
+!seeds/templates/
 *.egg-info/
 build/
 dist/

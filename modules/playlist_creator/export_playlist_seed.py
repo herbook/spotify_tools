@@ -1,6 +1,6 @@
 """Export one of your Spotify playlists (or a position range of it) to a seed text file.
 
-The seed file lists one 'Artist - Title' per line, plus optional 'criteria:', 'name:' and 'count:'
+The seed file lists one 'Artist - Title' per line, plus optional 'criteria:', 'name:' and 'song_count:'
 settings, and is easy to edit by hand. It is the input for suggest_playlist.py.
 """
 
@@ -18,7 +18,7 @@ SEED_HEADER = """\
 # Optional settings, remove the leading # to use them:
 # criteria: describe what the new playlist should be like
 # name: name for the new playlist
-# count: how many songs to suggest
+# song_count: how many songs to suggest
 """
 
 
@@ -37,16 +37,22 @@ def build_song_lines(items: list[dict], start: int, end: int | None) -> list[str
     return songs
 
 
-def main(playlist: str, output_path: Path | None, start: int, end: int | None) -> None:
-    """Export a Spotify playlist, or a position range of it, into a seed text file."""
-    auth = load_auth(Path.home() / ".spotipy")
-    session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
-
+def export_seed(session, playlist: str, start: int, end: int | None) -> tuple[str, str, int]:
+    """Read a playlist (or a position range of it) and return its name, the seed text and the song count."""
     playlist_id = extract_playlist_id(link=playlist)
     playlist_name = get_playlist_name(session=session, playlist_id=playlist_id)
     items = get_playlist_items(session=session, playlist_id=playlist_id)
     songs = build_song_lines(items=items, start=start, end=end)
     header = SEED_HEADER.format(name=playlist_name, id=playlist_id, start=start, end=end or "end")
+    return playlist_name, header + "\n" + "\n".join(songs) + "\n", len(songs)
+
+
+def main(playlist: str, output_path: Path | None, start: int, end: int | None) -> None:
+    """Export a Spotify playlist, or a position range of it, into a seed text file."""
+    auth = load_auth(Path.home() / ".spotipy")
+    session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+
+    playlist_name, seed_text, song_count = export_seed(session=session, playlist=playlist, start=start, end=end)
 
     if output_path is None:
         file_name = re.sub(r'[<>:"/\\|?*]', "_", playlist_name)
@@ -54,9 +60,9 @@ def main(playlist: str, output_path: Path | None, start: int, end: int | None) -
 
     output_path.parent.mkdir(exist_ok=True, parents=True)
     with Path.open(output_path, "w", encoding="utf-8") as seed_file:
-        seed_file.write(header + "\n" + "\n".join(songs) + "\n")
+        seed_file.write(seed_text)
 
-    print(f"Wrote {len(songs)} songs to {output_path}")
+    print(f"Wrote {song_count} songs to {output_path}")
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
    ```
 
 2. Set up Spotify and Gemini as described below.
-3. Put the credentials into the file `.spotipy` in your user folder (`C:\Users\<you>\.spotipy`), one `key=value` per line, with no blank lines:
+3. Put the credentials into the file `.spotipy` in your user folder (`C:\Users\<you>\.spotipy`), one `key=value` per line. The window's **Settings** button writes the same file.
 
    ```text
    CLIENT_ID=<Spotify client id>
@@ -37,7 +37,9 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
    GEMINI_API_KEY=<Gemini API key>
    ```
 
-   `GEMINI_API_KEY` is only needed by the playlist creator.
+   - `CLIENT_ID`: the Client ID of your Spotify app, see [Spotify](#spotify-developer-dashboard).
+   - `CLIENT_SECRET`: the Client secret of the same Spotify app. Keep it private.
+   - `GEMINI_API_KEY`: your Google AI Studio API key, see [Gemini](#gemini-playlist-creator-only). Only the playlist creator needs it.
 
 4. Run every command from the project root (the folder that contains `modules`), using `python -m ...` as shown below.
 
@@ -48,7 +50,7 @@ Both tools need a Spotify app to get a client ID and secret.
 1. Log in at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) with your Spotify account.
 2. Click **Create app**, enter any name and description, accept the Developer Terms of Service and, if asked which APIs you plan to use, choose **Web API**.
 3. Add this exact **Redirect URI** and save: `http://127.0.0.1:8888/callback`.
-4. Open the app's **Settings** and copy the **Client ID** and **Client secret** into `.spotipy`.
+4. Open the app's **Settings** and copy the **Client ID** into `CLIENT_ID` and the **Client secret** into `CLIENT_SECRET` in `.spotipy`.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
 On the first run a browser window opens and asks you to approve access. The tools ask for the permissions to create and edit your private playlists and to read them (`playlist-modify-private` and `playlist-read-private`). If the browser ends on a page that fails to load, copy its full address into the terminal prompt. spotipy keeps the login in a `.cache` file in the folder you run from, so keep that file private too.
@@ -59,7 +61,7 @@ On the first run a browser window opens and asks you to approve access. The tool
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model, `gemini-3.8-flash`, is available on the free tier, as is `gemini-3.5-flash-lite`. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When the quota is used up, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If the model is overloaded, the script retries automatically.
+The default model, `gemini-3.8-flash`, is available on the free tier, as is `gemini-3.5-flash-lite`. The window's model list shows the free-tier models your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If the model is overloaded, the script retries automatically.
 
 ## Usage
 
@@ -84,12 +86,12 @@ Both steps take the folder that holds your Winamp exports as an argument, for ex
 
 ### Playlist creator
 
-The playlist creator works from a **seed file**: a plain text file in the `seeds` folder with one `Artist - Title` per line and optional settings. The format is explained in `seeds/seed_template.txt`:
+The playlist creator works from a **seed file**: a plain text file in the `seeds` folder with one `Artist - Title` per line and optional settings. The format is explained in `seeds/templates/seed_template.txt`:
 
 ```text
 criteria: slow boom bap rap, 85-95 BPM, dusty drums, laid-back flow, 90s feel
 name: Chill boom bap
-count: 30
+song_count: 30
 
 Nas - N.Y. State of Mind
 Wu-Tang Clan - C.R.E.A.M.
@@ -97,8 +99,8 @@ Wu-Tang Clan - C.R.E.A.M.
 
 - Lines starting with `#` and blank lines are ignored.
 - `criteria` tells the AI what the new playlist should be like. Without it, the AI infers what the seed songs have in common.
-- `name` is the new playlist's name (default `AI suggestions [<seed file name>]`) and `count` is how many songs to suggest (default 30).
-- Several artists are written as `Artist A, Artist B - Title`.
+- `name` is the new playlist's name (default `AI suggestions [<seed file name>]`) and `song_count` is how many songs to suggest (default 30).
+- For several artists, use commas, for example `Chicane, Moya Brennan - Saltwater`.
 
 Once you have a seed file, create the playlist with:
 
@@ -106,19 +108,19 @@ Once you have a seed file, create the playlist with:
 python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
 ```
 
-The options `--criteria`, `--count`, `--name` and `--model` override the settings in the seed file, for example:
+The options `--criteria`, `--song-count`, `--name` and `--model` override the settings in the seed file, for example:
 
 ```powershell
-python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
+python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --song-count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
 ```
 
 While it runs, the command window shows a live progress counter and any songs that were not found or skipped. At the end it prints the playlist link, Gemini's summary of the playlist, the number of songs added and skipped, and the log path. A request that gets no data for 500 seconds is cancelled and retried.
 
 #### Where the seed songs come from
 
-There are two ways to get a seed file. In both, the `criteria`, `name` and `count` settings are optional, and you can set them in the file or with the command-line options.
+There are two ways to get a seed file. In both, the `criteria`, `name` and `song_count` settings are optional, and you can set them in the file or with the command-line options.
 
-1. **From a Spotify playlist, or part of one.** Export the playlist into a seed file, edit the file if you like (remove songs, add `criteria:`), then run `suggest_playlist` on it. You can use a playlist link, URI or ID. Only playlists you own or collaborate on can be read.
+1. **From a Spotify playlist, or part of one.** Export the playlist into a seed file, edit the file if you like (remove songs, add `criteria:`), then run `suggest_playlist` on it. You can use a playlist link, URI or ID. Spotify's documentation says only playlists you own or collaborate on can be read, but playlists of other users have worked in practice; if Spotify refuses one, the export stops with an error.
 
    ```powershell
    python -m modules.playlist_creator.export_playlist_seed <spotify playlist url>
@@ -131,11 +133,21 @@ There are two ways to get a seed file. In both, the `criteria`, `name` and `coun
    python -m modules.playlist_creator.export_playlist_seed <spotify playlist url> --start 11 --end 20 --output seeds\sub_set.txt
    ```
 
-2. **From your own list of songs.** Copy `seeds/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the tool, keep the example songs and change only the settings.
+2. **From your own list of songs.** Copy `seeds/templates/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the tool, keep the example songs and change only the settings.
 
 At least one seed song is needed; a seed file with only settings is rejected.
 
-To get different results from the same seed, run it again with other `--criteria`, `--count` or `--model` values, or edit `criteria:` in the file. Each run creates a new playlist and a new log, so rename or delete the ones you don't want in Spotify.
+To get different results from the same seed, run it again with other `--criteria`, `--song-count` or `--model` values, or edit `criteria:` in the file. Each run creates a new playlist and a new log, so rename or delete the ones you don't want in Spotify.
+
+#### GUI window
+
+The playlist creator also has a window, started from the project root:
+
+```powershell
+python -m modules.playlist_creator.gui
+```
+
+Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. The window uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
 
 ## Logs
 

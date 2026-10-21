@@ -16,7 +16,7 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel
 
-from modules.playlist_creator.seed import read_seed
+from modules.playlist_creator.seed import Seed, read_seed
 from modules.spotify_api import (
     add_songs_to_playlist,
     create_playlist,
@@ -28,8 +28,16 @@ from modules.spotify_api import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL = "gemini-3.8-flash"
-DEFAULT_COUNT = 30
+# Text models with a free tier (per Google's pricing page), ordered from most to least powerful by generation and size
+FREE_TIER_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+]
+DEFAULT_MODEL = FREE_TIER_MODELS[0]
+DEFAULT_SONG_COUNT = 30
 DEFAULT_CRITERIA = "similar to the seed songs"
 MAX_ADD_BATCH = 100  # Spotify accepts at most 100 items per add request
 MAX_GEMINI_ATTEMPTS = 5
@@ -69,14 +77,14 @@ class Suggestions(BaseModel):
     summary: str
 
 
-def build_prompt(songs: list[str], criteria: str, count: int) -> str:
+def build_prompt(songs: list[str], criteria: str, song_count: int) -> str:
     """Build the request text from the seed songs and the criteria."""
     seed_lines = "\n".join(f"- {song}" for song in songs)
     return (
         f"Seed songs:\n{seed_lines}\n\n"
         f"Criteria: {criteria}\n\n"
         f"{SIMILARITY_GUIDE}\n\n"
-        f"Suggest {count} songs that match the criteria and are similar to the seed songs. "
+        f"Suggest {song_count} songs that match the criteria and are similar to the seed songs. "
         "For each song give the artist, the exact title and one short sentence on why it fits. "
         "For a remix or other version, put the mix name in the title as it appears on Spotify, "
         "for example 'Title - Artist Remix'. "
@@ -145,18 +153,47 @@ def quota_message(error: errors.ClientError, model: str) -> str:
     if retry_delay:
         hours, rest = divmod(int(float(retry_delay.removesuffix("s"))), 3600)
         message += f" Retry in about {f'{hours}h {rest // 60}m' if hours else f'{rest // 60}m {rest % 60}s'}."
-    return f"{message} The quota is per model, so another one, e.g. --model gemini-3.5-flash-lite, may still work."
+    return message
 
 
-def suggest_or_exit(api_key: str, model: str, prompt: str) -> Suggestions:
-    """Run suggest_songs, but stop with a clear message when Gemini's quota is used up."""
-    try:
-        return suggest_songs(api_key=api_key, model=model, prompt=prompt)
-    except errors.ClientError as e:
-        if e.code != 429:
-            raise
-        message = quota_message(error=e, model=model)
-        raise SystemExit(message) from e
+def models_to_try(model: str) -> list[str]:
+    """Return the chosen model followed by the less powerful free-tier models; a model outside the list has no fallbacks."""
+    if model not in FREE_TIER_MODELS:
+        return [model]
+    return FREE_TIER_MODELS[FREE_TIER_MODELS.index(model) :]
+
+
+def suggest_or_exit(api_key: str, model: str, prompt: str) -> tuple[Suggestions, str]:
+    """Run suggest_songs and return the answer with the model that gave it.
+
+    When a model's quota is used up or the model is no longer available, the next free-tier model is tried; the run
+    stops with a message when none is left or when Gemini's servers are down.
+    """
+    candidates = models_to_try(model=model)
+    for index, candidate in enumerate(candidates):
+        try:
+            return suggest_songs(api_key=api_key, model=candidate, prompt=prompt), candidate
+        except errors.ClientError as e:
+            if e.code not in (404, 429):
+                raise
+            message = quota_message(error=e, model=candidate) if e.code == 429 else f"{e.code} {e.status}: {e.message}"
+            if index + 1 < len(candidates):
+                print(f"{message}\nTrying {candidates[index + 1]} instead.\n")
+                continue
+            if e.code == 429 and len(candidates) == 1:
+                message += " The quota is per model, so another one may still work."
+            raise SystemExit(message) from e
+        except errors.ServerError as e:
+            message = f"{e.code} {e.status}: {e.message}"
+            raise SystemExit(message) from e
+    raise AssertionError  # candidates is never empty
+
+
+def list_models(api_key: str) -> list[str]:
+    """Return the free-tier models this API key can use, most powerful first."""
+    client = genai.Client(api_key=api_key)
+    available = {model.name.removeprefix("models/") for model in client.models.list()}
+    return [name for name in FREE_TIER_MODELS if name in available]
 
 
 def seed_keys(songs: list[str]) -> set[str]:
@@ -192,7 +229,7 @@ def build_log(  # noqa: PLR0913
     """Build the Markdown log: a short summary and a table with one row per suggested song."""
     added = sum(1 for status, *_ in rows if status == "ADDED")
     lines = [
-        "# AI playlist log",
+        "# Playlist log",
         "",
         f"- **Seed:** {seed_name}",
         f"- **Criteria:** {criteria}",
@@ -210,25 +247,34 @@ def build_log(  # noqa: PLR0913
     return "\n".join(lines) + "\n"
 
 
-def main(seed_path: Path, criteria: str | None, count: int | None, name: str | None, model: str) -> None:
-    """Create a private Spotify playlist of songs that Gemini suggests for the seed file."""
-    seed = read_seed(path=seed_path)
+def run(  # noqa: PLR0913
+    *,
+    seed: Seed,
+    seed_label: str,
+    criteria: str | None,
+    song_count: int | None,
+    name: str | None,
+    model: str,
+    auth: dict[str, str],
+) -> tuple[str | None, Path]:
+    """Create a private playlist of songs that Gemini suggests for the seed; returns the playlist link and log path.
+
+    `seed_label` is a file-like name (for example 'my_seed.txt') used in the log, the log file name and
+    the default playlist name; `auth` needs CLIENT_ID, CLIENT_SECRET and GEMINI_API_KEY.
+    """
     if not seed.songs:
-        msg = f"No songs found in {seed_path}"
+        msg = f"No songs found in {seed_label}"
         raise SystemExit(msg)
 
+    seed_stem = Path(seed_label).stem
     criteria = criteria or seed.settings.get("criteria") or DEFAULT_CRITERIA
-    count = count or int(seed.settings.get("count") or DEFAULT_COUNT)
-    name = name or seed.settings.get("name") or f"AI suggestions [{seed_path.stem}]"
+    song_count = song_count or int(seed.settings.get("song_count") or DEFAULT_SONG_COUNT)
+    name = name or seed.settings.get("name") or f"AI suggestions [{seed_stem}]"
 
-    auth = load_auth(Path.home() / ".spotipy")
-    gemini_key = auth.get("GEMINI_API_KEY")
-    if not gemini_key:
-        msg_0 = "Add a GEMINI_API_KEY=... line to ~/.spotipy"
-        raise SystemExit(msg_0)
-
-    answer = suggest_or_exit(
-        api_key=gemini_key, model=model, prompt=build_prompt(songs=seed.songs, criteria=criteria, count=count)
+    answer, model = suggest_or_exit(
+        api_key=auth["GEMINI_API_KEY"],
+        model=model,
+        prompt=build_prompt(songs=seed.songs, criteria=criteria, song_count=song_count),
     )
     suggestions = answer.songs
     print(f"{model} suggested {len(suggestions)} songs\n")
@@ -266,9 +312,9 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     start_time = datetime.now().astimezone().strftime("%Y%m%d_%H%M")
     log_path = PROJECT_ROOT / "log" / "playlist_creator"
     log_path.mkdir(exist_ok=True, parents=True)
-    log_file = log_path / f"{start_time}_[{seed_path.stem}]_ai_playlist_log.md"
+    log_file = log_path / f"{start_time}_[{seed_stem}]_ai_playlist_log.md"
     log_text = build_log(
-        seed_name=seed_path.name,
+        seed_name=seed_label,
         criteria=criteria,
         model=model,
         playlist_name=name,
@@ -281,6 +327,25 @@ def main(seed_path: Path, criteria: str | None, count: int | None, name: str | N
     added = sum(1 for status, *_ in rows if status == "ADDED")
     print(f"\nSummary from Gemini: {answer.summary}")
     print(f"\n{added} added, {len(rows) - added} skipped")
+    return playlist_link, log_file
+
+
+def main(seed_path: Path, criteria: str | None, song_count: int | None, name: str | None, model: str) -> None:
+    """Create a private Spotify playlist of songs that Gemini suggests for the seed file."""
+    auth = load_auth(Path.home() / ".spotipy")
+    if not auth.get("GEMINI_API_KEY"):
+        msg = "Add a GEMINI_API_KEY=... line to ~/.spotipy"
+        raise SystemExit(msg)
+
+    _, log_file = run(
+        seed=read_seed(path=seed_path),
+        seed_label=seed_path.name,
+        criteria=criteria,
+        song_count=song_count,
+        name=name,
+        model=model,
+        auth=auth,
+    )
     print(f"Log: {log_file}")
 
 
@@ -288,9 +353,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create a Spotify playlist of AI-suggested songs from a seed file.")
     parser.add_argument("seed", type=Path, help="Seed text file: one 'Artist - Title' per line")
     parser.add_argument("--criteria", help="What the playlist should be like (overrides 'criteria:' in the seed file)")
-    parser.add_argument("--count", type=int, help=f"Songs to suggest (default {DEFAULT_COUNT})")
+    parser.add_argument("--song-count", type=int, help=f"Songs to suggest (default {DEFAULT_SONG_COUNT})")
     parser.add_argument("--name", help="Playlist name (overrides 'name:' in the seed file)")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Gemini model (default {DEFAULT_MODEL})")
     args = parser.parse_args()
 
-    main(seed_path=args.seed, criteria=args.criteria, count=args.count, name=args.name, model=args.model)
+    main(seed_path=args.seed, criteria=args.criteria, song_count=args.song_count, name=args.name, model=args.model)

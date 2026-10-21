@@ -17,6 +17,7 @@ dependencies = [
   "httpx>=0.28",
   "pydantic>=2.11",
   "beautifulsoup4>=4.13",
+  "PySide6-Essentials>=6.8",  # Window for the playlist creator; the full PySide6 adds about 128 MB of unused modules
 ]
 
 [tool.setuptools.packages.find]

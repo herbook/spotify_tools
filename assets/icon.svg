@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5aa0e8"/>
+      <stop offset="1" stop-color="#2a5fa8"/>
+    </linearGradient>
+    <linearGradient id="disc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/>
+      <stop offset="0.5" stop-color="#c3ccd5"/>
+      <stop offset="1" stop-color="#eef2f6"/>
+    </linearGradient>
+    <linearGradient id="shutter" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3e8ed"/>
+      <stop offset="1" stop-color="#aeb7c0"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="12" width="224" height="232" rx="18" fill="url(#shell)"/>
+  <circle cx="128" cy="112" r="82" fill="url(#disc)"/>
+  <circle cx="128" cy="112" r="30" fill="#aab4be"/>
+  <circle cx="128" cy="112" r="18" fill="#5f6b77"/>
+  <circle cx="128" cy="112" r="7" fill="#2a5fa8"/>
+  <rect x="84" y="12" width="88" height="56" rx="6" fill="url(#shutter)"/>
+  <rect x="96" y="24" width="64" height="8" rx="4" fill="#8f99a3"/>
+  <rect x="44" y="204" width="168" height="28" rx="6" fill="#f4f6f8"/>
+  <rect x="56" y="214" width="96" height="8" rx="4" fill="#c3ccd5"/>
+</svg>

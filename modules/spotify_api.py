@@ -31,10 +31,19 @@ def load_auth(file_path):
     auth = {}
     with Path.open(file_path, "r") as file:
         for line in file:
+            if not line.strip():
+                continue
+
             key, value = line.strip().split("=", 1)
             auth[key] = value
 
     return auth
+
+
+def save_auth(file_path, auth):
+    """Write the credentials as key=value lines, skipping empty values."""
+    lines = [f"{key}={value}" for key, value in auth.items() if value]
+    Path(file_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def spotify_session(client_id, client_secret):
@@ -208,7 +217,7 @@ def get_playlist_name(session: spotipy.Spotify, playlist_id: str) -> str:
 
 
 def get_playlist_items(session: spotipy.Spotify, playlist_id: str) -> list[dict]:
-    """Return all items of a playlist the user owns or collaborates on, in playlist order."""
+    """Return all items of a playlist, in playlist order."""
     items = []
     while True:
         page = session.playlist_items(playlist_id, limit=50, offset=len(items), additional_types=("track",))
