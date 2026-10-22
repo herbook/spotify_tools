@@ -74,8 +74,32 @@ def playlist_url(playlist_id):
     return f"https://open.spotify.com/playlist/{playlist_id}"
 
 
+# Letters that NFKD does not split into a base letter plus accent
+TRANSLITERATIONS = str.maketrans(
+    {
+        "ø": "o",
+        "Ø": "O",
+        "æ": "ae",
+        "Æ": "AE",
+        "œ": "oe",
+        "Œ": "OE",
+        "ß": "ss",
+        "ð": "d",
+        "Ð": "D",
+        "þ": "th",
+        "Þ": "TH",
+        "ł": "l",
+        "Ł": "L",
+        "đ": "d",
+        "Đ": "D",
+        "ı": "i",
+    }
+)
+
+
 def normalize(text: str) -> str:
     """Lowercase, strip accents and punctuation, and collapse whitespace for comparison."""
+    text = text.translate(TRANSLITERATIONS)
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     text = re.sub(r"[^\w\s]", " ", text.lower().replace("'", ""))
     return " ".join(text.split())

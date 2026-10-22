@@ -6,6 +6,7 @@ the matches to a new private playlist. A log of added and skipped songs, with re
 """
 
 import argparse
+import html
 import re
 import time
 from datetime import datetime
@@ -14,7 +15,7 @@ from pathlib import Path
 import httpx
 from google import genai
 from google.genai import errors, types
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from modules.playlist_creator.seed import Seed, read_seed
 from modules.spotify_api import (
@@ -69,12 +70,23 @@ class Suggestion(BaseModel):
     title: str
     reason: str
 
+    # Gemini sometimes returns accented letters as HTML entities such as '&#246;'
+    @field_validator("artist", "title", "reason")
+    @classmethod
+    def unescape(cls, value: str) -> str:
+        return html.unescape(value)
+
 
 class Suggestions(BaseModel):
     """The model's answer: a list of proposed songs and a short summary of the playlist."""
 
     songs: list[Suggestion]
     summary: str
+
+    @field_validator("summary")
+    @classmethod
+    def unescape(cls, value: str) -> str:
+        return html.unescape(value)
 
 
 def build_prompt(songs: list[str], criteria: str, song_count: int) -> str:
@@ -231,12 +243,14 @@ def build_log(  # noqa: PLR0913
     lines = [
         "# Playlist log",
         "",
+        "",
         f"- **Seed:** {seed_name}",
         f"- **Criteria:** {criteria}",
         f"- **Model:** {model}",
         f"- **Playlist:** {f'[{playlist_name}]({playlist_link})' if playlist_link else 'not created'}",
         f"- **Songs:** {added} added, {len(rows) - added} skipped",
         f"- **Summary from Gemini:** {' '.join(summary.split())}",
+        "",
         "",
         "| # | Status | Suggested | Spotify result | Gemini's reason |",
         "|---|--------|-----------|----------------|-----------------|",
