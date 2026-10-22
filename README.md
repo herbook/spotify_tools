@@ -151,6 +151,16 @@ python -m modules.playlist_creator.gui
 
 Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. The window uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
 
+##### Desktop shortcut (Windows)
+
+To open the window from a desktop icon, run this once from the project root, using the project's Python environment:
+
+```powershell
+python -m modules.playlist_creator.create_shortcut
+```
+
+It creates `Playlist creator.lnk` on the desktop, which starts the window without a console and points at that environment, so run the command again if you move or recreate it. The shortcut has no terminal, so before first using it, start the window once from the project root with `python -m modules.playlist_creator.gui` and approve the Spotify sign-in there.
+
 ## Logs
 
 Logs are written under `log` in the project folder.
