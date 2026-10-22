@@ -92,7 +92,6 @@ TRANSLITERATIONS = str.maketrans(
         "Ł": "L",
         "đ": "d",
         "Đ": "D",
-        "ı": "i",
     }
 )
 
