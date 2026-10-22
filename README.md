@@ -149,7 +149,7 @@ The playlist creator also has a window, started from the project root:
 python -m modules.playlist_creator.gui
 ```
 
-Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. The window uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
+Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. While it runs, a spinning LP record is shown; clicking it stops the process. The window uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
 
 ##### Desktop shortcut (Windows)
 
