@@ -6,6 +6,10 @@ Two tools that create private Spotify playlists:
 
 - **Winamp to Spotify** converts old Winamp playlist exports (`.htm`, `.html`, `.txt`) into Spotify playlists. Each export is cleaned into a plain list of "Artist Title" lines, every line is searched on Spotify, and the best matches go into a new playlist.
 - **Playlist creator** asks Google Gemini for songs similar to a set of seed songs, based on criteria you write (genre, BPM, beat or rap style, mood, ...). Every suggestion is looked up on Spotify, so invented songs are dropped, and the matches go into a new playlist. The seed songs themselves are never suggested, and a playlist never contains the same song twice.
+  - Gemini chooses the songs from its own knowledge of music. Spotify's recommendations, audio data and your listening history are not used; Spotify is only searched to check that each suggested song exists.
+  - Gemini is told to weigh, in this order: your criteria, genre and subgenre, mood and energy, tempo and groove, era and production sound, vocals, instrumentation and lyrical themes. Without criteria, it infers what the seed songs have in common.
+  - Popularity is not a factor, so deep cuts are as likely as hits. Original studio versions are preferred over live versions and covers, and there are at most three songs per artist, unless your criteria say otherwise.
+  - Suggested songs that Spotify cannot match are skipped, so the playlist can end up with fewer songs than requested.
 
 Both tools use the Spotify Web API through `spotipy`, with the shared helpers in `modules/spotify_api.py`. Every run writes a log (see [Logs](#logs)).
 
@@ -17,6 +21,7 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 - [Usage](#usage)
   - [Winamp to Spotify](#winamp-to-spotify)
   - [Playlist creator](#playlist-creator)
+    - [GUI window](#gui-window)
 - [Logs](#logs)
 - [Notes and limits](#notes-and-limits)
 - [License](#license)
@@ -55,7 +60,7 @@ Both tools need a Spotify app to get a client ID and secret.
 4. Open the app's **Settings** and copy the **Client ID** into `CLIENT_ID` and the **Client secret** into `CLIENT_SECRET` in `.spotipy`.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
-On the first run a browser window opens and asks you to approve access. The tools ask for the permissions to create and edit your private playlists and to read them (`playlist-modify-private` and `playlist-read-private`). If the browser ends on a page that fails to load, copy its full address into the terminal prompt. spotipy keeps the login in a `.cache` file in the folder you run from, so keep that file private too.
+On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the program, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the folder you run from, so keep also that file private.
 
 ### Gemini (playlist creator only)
 
@@ -63,7 +68,7 @@ On the first run a browser window opens and asks you to approve access. The tool
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model, `gemini-3.8-flash`, is available on the free tier, as is `gemini-3.5-flash-lite`. The window's model list shows the free-tier models your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If the model is overloaded, the script retries automatically.
+The default model is `gemini-3.8-flash`. Only free-tier models are offered: the window's model list shows the ones your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the script stops with Gemini's error and does not switch to another model.
 
 ## Usage
 
@@ -101,7 +106,8 @@ Wu-Tang Clan - C.R.E.A.M.
 
 - Lines starting with `#` and blank lines are ignored.
 - `criteria` tells the AI what the new playlist should be like. Without it, the AI infers what the seed songs have in common.
-- `name` is the new playlist's name (default `AI suggestions [<seed file name>]`) and `song_count` is how many songs to suggest (default 30).
+- `name` is the new playlist's name (default `AI suggestions [<seed file name>]`).
+- `song_count` is how many songs to suggest (default 30).
 - For several artists, use commas, for example `Chicane, Moya Brennan - Saltwater`.
 
 Once you have a seed file, create the playlist with:
