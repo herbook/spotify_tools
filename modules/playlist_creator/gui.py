@@ -11,6 +11,7 @@ from collections.abc import Callable
 from contextlib import nullcontext, redirect_stdout
 from datetime import datetime
 from pathlib import Path
+from threading import Event
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import (
@@ -19,6 +20,7 @@ from PySide6.QtGui import (
     QFont,
     QFontDatabase,
     QIcon,
+    QMouseEvent,
     QPainter,
     QPalette,
     QPen,
@@ -45,7 +47,13 @@ from PySide6.QtWidgets import (
 
 from modules.playlist_creator.export_playlist_seed import export_seed
 from modules.playlist_creator.seed import parse_seed
-from modules.playlist_creator.suggest_playlist import DEFAULT_MODEL, FREE_TIER_MODELS, PROJECT_ROOT, list_models
+from modules.playlist_creator.suggest_playlist import (
+    DEFAULT_MODEL,
+    FREE_TIER_MODELS,
+    PROJECT_ROOT,
+    Cancelled,
+    list_models,
+)
 from modules.playlist_creator.suggest_playlist import run as create_playlist_from_seed
 from modules.spotify_api import extract_playlist_id, load_auth, save_auth, spotify_session
 
@@ -180,6 +188,8 @@ class Worker(QThread):
                 result = self.task()
         except SystemExit as e:  # The tools use SystemExit for user-facing errors such as a used-up quota
             self.failed.emit(str(e))
+        except Cancelled:
+            self.output.emit("\nStopped.\n")
         except Exception as e:  # noqa: BLE001  # Any error must reach the window, not vanish with the thread
             self.failed.emit(f"{type(e).__name__}: {e}")
         else:
@@ -247,7 +257,9 @@ class LogDialog(QDialog):
 
 
 class SpinningRecord(QWidget):
-    """A small LP that spins while it is running and is hidden otherwise."""
+    """A small LP that spins while it is running and is hidden otherwise; clicking it emits `clicked`."""
+
+    clicked = Signal()
 
     FRAME_MS = 33
     DEGREES_PER_FRAME = 8
@@ -279,6 +291,11 @@ class SpinningRecord(QWidget):
         """Turn the record one step."""
         self.angle = (self.angle + self.DEGREES_PER_FRAME) % 360
         self.update()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        """Emit `clicked` on a left click."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
 
     def paintEvent(self, event) -> None:  # noqa: ARG002, N802
         """Draw the record on a 100 x 100 grid, turned by the current angle."""
@@ -317,6 +334,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Playlist creator")
         self.worker = None
         self.model_worker = None
+        self.cancel = None
         self.log_file = None
         self.auth = load_saved_auth()
 
@@ -358,6 +376,7 @@ class MainWindow(QWidget):
         self.result_label = QLabel()
         self.result_label.linkActivated.connect(self.open_link)
         self.spinner = SpinningRecord()
+        self.spinner.clicked.connect(self.stop_task)
 
     def build_layout(self) -> None:
         """Arrange the controls: URL and seed buttons, seed editor, action row, output view and spinner."""
@@ -441,9 +460,17 @@ class MainWindow(QWidget):
         else:
             self.spinner.stop()
 
-    def start(self, task: Callable[[], object], on_success: Callable[[object], None]) -> None:
-        """Run the task in a worker thread, showing its output and reporting errors in the output view."""
+    def start(
+        self, task: Callable[[], object], on_success: Callable[[object], None], cancel: Event | None = None
+    ) -> None:
+        """Run the task in a worker thread, showing its output and reporting errors in the output view.
+
+        When `cancel` is given, clicking the spinning record sets it; the task must check it to stop.
+        """
         self.result_label.clear()
+        self.cancel = cancel
+        self.spinner.setToolTip("Click to stop" if cancel else "")
+        self.spinner.setCursor(Qt.CursorShape.PointingHandCursor if cancel else Qt.CursorShape.ArrowCursor)
         self.set_busy(busy=True)
         self.worker = Worker(task)
         self.worker.output.connect(self.append_output)
@@ -451,6 +478,12 @@ class MainWindow(QWidget):
         self.worker.failed.connect(lambda message: self.append_output(f"\nError: {message}\n"))
         self.worker.finished.connect(lambda: self.set_busy(busy=False))
         self.worker.start()
+
+    def stop_task(self) -> None:
+        """Ask the running task to stop; it ends at its next check."""
+        if self.cancel and not self.cancel.is_set():
+            self.cancel.set()
+            self.append_output("\nStopping...\n")
 
     def append_output(self, text: str) -> None:
         """Append text to the output view; a carriage return rewrites the current line, as in a terminal."""
@@ -499,10 +532,18 @@ class MainWindow(QWidget):
         model = self.model_combo.currentText()
         # A 'name:' line in the seed wins; otherwise the time tells the playlists apart
         name = None if "name" in seed.settings else f"AI suggestions [{datetime.now().astimezone():%Y-%m-%d %H:%M}]"
+        cancel = Event()
 
         def task() -> tuple[str | None, Path]:
             return create_playlist_from_seed(
-                seed=seed, seed_label=SEED_LABEL, criteria=None, song_count=None, name=name, model=model, auth=auth
+                seed=seed,
+                seed_label=SEED_LABEL,
+                criteria=None,
+                song_count=None,
+                name=name,
+                model=model,
+                auth=auth,
+                cancel=cancel,
             )
 
         def on_success(result: tuple[str | None, Path]) -> None:
@@ -510,7 +551,7 @@ class MainWindow(QWidget):
             playlist_part = f'<a href="{link}">Open the playlist in Spotify</a>' if link else "No playlist was created."
             self.result_label.setText(f'{playlist_part} | <a href="{LOG_LINK}">View the log</a>')
 
-        self.start(task=task, on_success=on_success)
+        self.start(task=task, on_success=on_success, cancel=cancel)
 
 
 def main() -> None:

@@ -11,6 +11,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
+from threading import Event
 
 import httpx
 from google import genai
@@ -63,6 +64,10 @@ Prefer original studio versions; avoid live versions and covers unless the crite
 Unless the criteria say otherwise, suggest at most three songs per artist."""
 
 
+class Cancelled(Exception):  # noqa: N818
+    """Raised when the user stops a run."""
+
+
 class Suggestion(BaseModel):
     """One song proposed by the model."""
 
@@ -105,8 +110,11 @@ def build_prompt(songs: list[str], criteria: str, song_count: int) -> str:
     )
 
 
-def suggest_songs(api_key: str, model: str, prompt: str) -> Suggestions:
-    """Ask Gemini for song suggestions, showing a progress line while it answers; returns the parsed Suggestions."""
+def suggest_songs(api_key: str, model: str, prompt: str, cancel: Event) -> Suggestions:
+    """Ask Gemini for song suggestions, showing a progress line while it answers; returns the parsed Suggestions.
+
+    Raises Cancelled when `cancel` is set; this is checked as each chunk arrives.
+    """
     client = genai.Client(
         api_key=api_key,
         # Server errors and overload (503) are usually temporary, so retry with growing delays; a 429 is a quota
@@ -135,6 +143,8 @@ def suggest_songs(api_key: str, model: str, prompt: str) -> Suggestions:
         )
         answer = []
         for chunks, chunk in enumerate(stream, start=1):
+            if cancel.is_set():
+                raise Cancelled
             print(f"\rReceiving: {chunks} chunks, {time.monotonic() - started:.0f}s", end="", flush=True)
             content = chunk.candidates[0].content if chunk.candidates else None
             parts = (content.parts if content else None) or []
@@ -175,7 +185,7 @@ def models_to_try(model: str) -> list[str]:
     return FREE_TIER_MODELS[FREE_TIER_MODELS.index(model) :]
 
 
-def suggest_or_exit(api_key: str, model: str, prompt: str) -> tuple[Suggestions, str]:
+def suggest_or_exit(api_key: str, model: str, prompt: str, cancel: Event) -> tuple[Suggestions, str]:
     """Run suggest_songs and return the answer with the model that gave it.
 
     When a model's quota is used up or the model is no longer available, the next free-tier model is tried; the run
@@ -184,7 +194,7 @@ def suggest_or_exit(api_key: str, model: str, prompt: str) -> tuple[Suggestions,
     candidates = models_to_try(model=model)
     for index, candidate in enumerate(candidates):
         try:
-            return suggest_songs(api_key=api_key, model=candidate, prompt=prompt), candidate
+            return suggest_songs(api_key=api_key, model=candidate, prompt=prompt, cancel=cancel), candidate
         except errors.ClientError as e:
             if e.code not in (404, 429):
                 raise
@@ -243,6 +253,7 @@ def build_log(  # noqa: PLR0913
     lines = [
         "# Playlist log",
         "",
+        "&nbsp;",
         "",
         f"- **Seed:** {seed_name}",
         f"- **Criteria:** {criteria}",
@@ -251,6 +262,7 @@ def build_log(  # noqa: PLR0913
         f"- **Songs:** {added} added, {len(rows) - added} skipped",
         f"- **Summary from Gemini:** {' '.join(summary.split())}",
         "",
+        "&nbsp;",
         "",
         "| # | Status | Suggested | Spotify result | Gemini's reason |",
         "|---|--------|-----------|----------------|-----------------|",
@@ -270,12 +282,15 @@ def run(  # noqa: PLR0913
     name: str | None,
     model: str,
     auth: dict[str, str],
+    cancel: Event | None = None,
 ) -> tuple[str | None, Path]:
     """Create a private playlist of songs that Gemini suggests for the seed; returns the playlist link and log path.
 
     `seed_label` is a file-like name (for example 'my_seed.txt') used in the log, the log file name and
     the default playlist name; `auth` needs CLIENT_ID, CLIENT_SECRET and GEMINI_API_KEY.
+    Setting `cancel` stops the run with Cancelled before any playlist is created.
     """
+    cancel = cancel or Event()
     if not seed.songs:
         msg = f"No songs found in {seed_label}"
         raise SystemExit(msg)
@@ -289,6 +304,7 @@ def run(  # noqa: PLR0913
         api_key=auth["GEMINI_API_KEY"],
         model=model,
         prompt=build_prompt(songs=seed.songs, criteria=criteria, song_count=song_count),
+        cancel=cancel,
     )
     suggestions = answer.songs
     print(f"{model} suggested {len(suggestions)} songs\n")
@@ -299,6 +315,8 @@ def run(  # noqa: PLR0913
     rows = []
     playlist_link = None
     for suggestion in suggestions:
+        if cancel.is_set():
+            raise Cancelled
         suggested = f"{suggestion.artist} - {suggestion.title}"
         found, not_found = get_song_uris(
             session=session, playlist=[f"{suggestion.artist} {suggestion.title}"], seen=seen, key_func=exact_track_key
