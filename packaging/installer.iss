@@ -64,6 +64,7 @@ Type: files; Name: "{app}\.cache"
 [Code]
 var
   NoticePrefix, NoticeLink, NoticeSemicolon, NoticeRest: TNewStaticText;
+  DefaultTitleTop, NoticeShift: Integer;
 
 procedure OpenRepository(Sender: TObject);
 var
@@ -100,10 +101,21 @@ begin
   NoticeSemicolon := AddNoticeLabel(';', NoticeLink.Left + NoticeLink.Width);
   NoticeRest := AddNoticeLabel('do not redistribute this installer.', NoticeSemicolon.Left + NoticeSemicolon.Width + ScaleX(4));
   // A header too narrow for one line gets the last part on a second line instead of cutting it off
+  DefaultTitleTop := WizardForm.PageNameLabel.Top;
   if NoticeRest.Left + NoticeRest.Width > Description.Left + Description.Width then
   begin
     NoticeRest.Left := Description.Left;
     NoticeRest.Top := Description.Top + NoticeRest.Height;
+    NoticeShift := 0;
+  end
+  else
+  begin
+    // The one-line notice and the page title move down a row together, so the header looks balanced
+    NoticeShift := NoticePrefix.Height;
+    NoticePrefix.Top := NoticePrefix.Top + NoticeShift;
+    NoticeLink.Top := NoticeLink.Top + NoticeShift;
+    NoticeSemicolon.Top := NoticeSemicolon.Top + NoticeShift;
+    NoticeRest.Top := NoticeRest.Top + NoticeShift;
   end;
 end;
 
@@ -116,6 +128,10 @@ begin
   NoticeLink.Visible := OnLicensePage;
   NoticeSemicolon.Visible := OnLicensePage;
   NoticeRest.Visible := OnLicensePage;
+  if OnLicensePage then
+    WizardForm.PageNameLabel.Top := DefaultTitleTop + NoticeShift
+  else
+    WizardForm.PageNameLabel.Top := DefaultTitleTop;
 end;
 
 // Logs and seeds are the user's data: ask before removing them, and keep them in a silent uninstall
