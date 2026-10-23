@@ -1,6 +1,6 @@
 #requires -Version 5.1
 <#
-Builds the Windows installer: a fresh virtual environment, the PyInstaller bundle, then the Inno Setup installer.
+Builds the GUI installer: a fresh virtual environment, the PyInstaller bundle, then the Inno Setup installer.
 Run it from anywhere: .\packaging\build.ps1 [-Python path\to\python.exe]
 If script execution is disabled: powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1
 The installer is written to dist\PlaylistCreator-<version>-setup.exe, the version coming from pyproject.toml.

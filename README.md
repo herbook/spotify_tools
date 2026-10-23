@@ -13,24 +13,24 @@ Two tools that create private Spotify playlists:
 
 Both tools use the Spotify Web API through `spotipy`, with the shared helpers in `modules/spotify_api.py`. Every run writes a log (see [Logs](#logs)).
 
-![Playlist creator window](assets/gui.png)
+![Playlist creator GUI](assets/gui.png)
 
 ## Table of Contents
 
 - [Installation](#installation)
-- [Windows installer](#windows-installer)
+- [GUI installer](#gui-installer)
   - [Building the installer](#building-the-installer)
 - [Usage](#usage)
   - [Winamp to Spotify](#winamp-to-spotify)
   - [Playlist creator](#playlist-creator)
-    - [GUI window](#gui-window)
+    - [GUI](#gui)
 - [Logs](#logs)
 - [Notes and limits](#notes-and-limits)
 - [License](#license)
 
 ## Installation
 
-These steps set up the command-line tools and the window from source. For the window only, see the [Windows installer](#windows-installer).
+These steps set up the command-line tools and the GUI from source. For the GUI only, see the [GUI installer](#gui-installer).
 
 1. Create the conda environment `spotify_tools` from the project root. It installs Python 3.13 and then installs the project and all its dependencies (listed in `pyproject.toml`) with pip:
 
@@ -40,7 +40,7 @@ These steps set up the command-line tools and the window from source. For the wi
    ```
 
 2. Set up Spotify and Gemini as described below.
-3. Put the credentials into the file `.spotipy` in your user folder (`%USERPROFILE%\.spotipy`), one `key=value` per line. The window's **Settings** button writes the same file.
+3. Put the credentials into the file `.spotipy` in your user folder (`%USERPROFILE%\.spotipy`), one `key=value` per line. The GUI's **Settings** button writes the same file.
 
    ```text
    CLIENT_ID=<Spotify client id>
@@ -72,11 +72,11 @@ On the first run, a browser window opens and asks you to approve access. The too
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model is `gemini-3.8-flash`. Only free-tier models are offered: the window's model list shows the ones your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the script stops with Gemini's error and does not switch to another model.
+The default model is `gemini-3.8-flash`. Only free-tier models are offered: the GUI's model list shows the ones your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the script stops with Gemini's error and does not switch to another model.
 
-## Windows installer
+## GUI installer
 
-The playlist creator window is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
+The playlist creator GUI is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
 
 - It installs for the current user only, so it needs no administrator rights. The default folder is `%LOCALAPPDATA%\Programs\PlaylistCreator`, and you can choose another folder that you can write to. A Start Menu shortcut and a Desktop shortcut are optional steps in the installer.
 - Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `%USERPROFILE%\.spotipy`, as in the conda setup.
@@ -91,7 +91,7 @@ Building needs Python 3.13 and [Inno Setup](https://jrsoftware.org/isinfo.php) (
 powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Python <path to python.exe>
 ```
 
-The script creates a clean virtual environment under `packaging\_work`, bundles the window with PyInstaller and compiles `packaging\installer.iss`. The result is `dist\PlaylistCreator-<version>-setup.exe`, with the version taken from `pyproject.toml`, so raise it there before building an update.
+The script creates a clean virtual environment under `packaging\_work`, bundles the GUI with PyInstaller and compiles `packaging\installer.iss`. The result is `dist\PlaylistCreator-<version>-setup.exe`, with the version taken from `pyproject.toml`, so raise it there before building an update.
 
 ## Usage
 
@@ -170,25 +170,25 @@ At least one seed song is needed; a seed file with only settings is rejected.
 
 To get different results from the same seed, run it again with other `--criteria`, `--song-count` or `--model` values, or edit `criteria:` in the file. Each run creates a new playlist and a new log, so rename or delete the ones you don't want in Spotify.
 
-#### GUI window
+#### GUI
 
-The playlist creator also has a window, started from the project root:
+The playlist creator also has a GUI, started from the project root:
 
 ```powershell
 python -m modules.playlist_creator.gui
 ```
 
-Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. While it runs, a spinning LP record is shown; clicking it stops the process. The window uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
+Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. While it runs, a spinning LP record is shown; clicking it stops the process. The GUI uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
 
 ##### Desktop shortcut (Windows)
 
-To open the window from a desktop icon, run this once from the project root, using the project's Python environment:
+To open the GUI from a desktop icon, run this once from the project root, using the project's Python environment:
 
 ```powershell
 python -m modules.playlist_creator.create_shortcut
 ```
 
-It creates `Playlist creator.lnk` on the desktop, which starts the window without a console and points at that environment, so run the command again if you move or recreate it. The shortcut has no terminal, so before first using it, start the window once from the project root with `python -m modules.playlist_creator.gui` and approve the Spotify sign-in there.
+It creates `Playlist creator.lnk` on the desktop, which starts the GUI without a console and points at that environment, so run the command again if you move or recreate it. The shortcut has no terminal, so before first using it, start the GUI once from the project root with `python -m modules.playlist_creator.gui` and approve the Spotify sign-in there.
 
 ## Logs
 
