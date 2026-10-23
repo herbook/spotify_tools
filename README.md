@@ -30,6 +30,8 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 
 ## Installation
 
+These steps set up the command-line tools and the window from source. For the window only, see the [Windows installer](#windows-installer).
+
 1. Create the conda environment `spotify_tools` from the project root. It installs Python 3.13 and then installs the project and all its dependencies (listed in `pyproject.toml`) with pip:
 
    ```powershell
@@ -38,7 +40,7 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
    ```
 
 2. Set up Spotify and Gemini as described below.
-3. Put the credentials into the file `.spotipy` in your user folder (`C:\Users\<you>\.spotipy`), one `key=value` per line. The window's **Settings** button writes the same file.
+3. Put the credentials into the file `.spotipy` in your user folder (`%USERPROFILE%\.spotipy`), one `key=value` per line. The window's **Settings** button writes the same file.
 
    ```text
    CLIENT_ID=<Spotify client id>
@@ -62,7 +64,7 @@ Both tools need a Spotify app to get a client ID and secret.
 4. Open the app's **Settings** and copy the **Client ID** into `CLIENT_ID` and the **Client secret** into `CLIENT_SECRET` in `.spotipy`.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
-On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the program, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the folder you run from, so keep also that file private.
+On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the program, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the project folder, so keep that file private too.
 
 ### Gemini (playlist creator only)
 
@@ -77,9 +79,9 @@ The default model is `gemini-3.8-flash`. Only free-tier models are offered: the 
 The playlist creator window is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
 
 - It installs for the current user only, so it needs no administrator rights. The default folder is `%LOCALAPPDATA%\Programs\PlaylistCreator`, and you can choose another folder that you can write to. A Start Menu shortcut and a Desktop shortcut are optional steps in the installer.
-- Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `.spotipy` in your user folder, as in the conda setup.
-- Everything else stays in the install folder: the logs in `log` and the Spotify login in `.cache` (keep that file private). The installed window has no terminal, so the paste-the-address fallback described under [Spotify](#spotify-developer-dashboard) is not available.
-- To update, run the newer installer and keep the same folder; the logs are kept. The uninstaller always removes `.cache` and asks whether to delete `log` and `seeds`.
+- Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `%USERPROFILE%\.spotipy`, as in the conda setup.
+- Everything else stays in the install folder: the logs in `log` and the Spotify login in `.cache` (keep that file private). The app installed this way has no terminal, so the paste-the-address fallback described under [Spotify](#spotify-developer-dashboard) is not available.
+- To update, run the newer installer and keep the same folder; the logs are kept. The uninstaller always removes `.cache` and asks whether to delete `log` and `seeds` if they exist.
 
 ### Building the installer
 
@@ -190,7 +192,7 @@ It creates `Playlist creator.lnk` on the desktop, which starts the window withou
 
 ## Logs
 
-Logs are written under `log` in the project folder.
+Logs are written under `log` in the project folder (in the install folder when you use the installer).
 
 - `log\winamp_to_spotify\`: per playlist created (`all_files` when merged, otherwise per input file), a log of added songs and one of songs that were not found or skipped as duplicates, plus a list of the created playlists with their links.
 - `log\playlist_creator\`: `<time>_[<seed name>]_ai_playlist_log.md`, a Markdown table with one row per suggested song: whether it was added or skipped, the song Gemini suggested, what Spotify returned (with a match score from 0 to 1) and Gemini's reason. The header has a link to the created playlist.
