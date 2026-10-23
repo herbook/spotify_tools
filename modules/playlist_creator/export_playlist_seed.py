@@ -8,9 +8,10 @@ import argparse
 import re
 from pathlib import Path
 
+from modules.paths import APP_ROOT, TOKEN_CACHE_PATH
 from modules.spotify_api import extract_playlist_id, get_playlist_items, get_playlist_name, load_auth, spotify_session
 
-SEEDS_PATH = Path(__file__).resolve().parents[2] / "seeds"
+SEEDS_PATH = APP_ROOT / "seeds"
 SEED_HEADER = """\
 # Seed file: one "Artist - Title" per line. Lines starting with # are ignored.
 # Source: Spotify playlist "{name}" ({id}), positions {start}-{end}
@@ -50,7 +51,9 @@ def export_seed(session, playlist: str, start: int, end: int | None) -> tuple[st
 def main(playlist: str, output_path: Path | None, start: int, end: int | None) -> None:
     """Export a Spotify playlist, or a position range of it, into a seed text file."""
     auth = load_auth(Path.home() / ".spotipy")
-    session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+    session = spotify_session(
+        client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
+    )
 
     playlist_name, seed_text, song_count = export_seed(session=session, playlist=playlist, start=start, end=end)
 

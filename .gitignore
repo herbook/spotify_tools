@@ -11,3 +11,4 @@ seeds/*
 *.egg-info/
 build/
 dist/
+packaging/_work/

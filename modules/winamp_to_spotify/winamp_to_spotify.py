@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from modules.paths import TOKEN_CACHE_PATH
 from modules.spotify_api import (
     add_songs_to_playlist,
     create_playlist,
@@ -51,7 +52,9 @@ def build_playlists(files, start_time):
 
 def run_through_playlists(files, log_path):
     auth = load_auth(Path.home() / ".spotipy")
-    session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+    session = spotify_session(
+        client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
+    )
 
     start_time = datetime.now().astimezone().strftime("%Y%m%d_%H%M")
     log_playlists = log_path / f"{start_time}_added_playlists_log.txt"
@@ -78,7 +81,11 @@ def run_through_playlists(files, log_path):
                 for i in range(0, len(lines), chunk_size):
                     if i > 0 and i % 1000 == 0:
                         print(f"Session reinitiated at song count {i}")
-                        session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+                        session = spotify_session(
+                            client_id=auth["CLIENT_ID"],
+                            client_secret=auth["CLIENT_SECRET"],
+                            cache_path=TOKEN_CACHE_PATH,
+                        )
 
                     line_chunk = lines[i : i + chunk_size]
                     found, not_found = get_song_uris(session=session, playlist=line_chunk, seen=seen_songs)

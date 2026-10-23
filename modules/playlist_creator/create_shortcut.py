@@ -8,10 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from modules.playlist_creator.suggest_playlist import PROJECT_ROOT
+from modules.paths import APP_ROOT
 
 SHORTCUT_NAME = "Playlist creator.lnk"
-ICON_PATH = PROJECT_ROOT / "assets" / "icon.ico"
+ICON_PATH = APP_ROOT / "assets" / "icon.ico"
 # Windows PowerShell resolves the real Desktop folder, including one redirected to OneDrive; values are passed through
 # the environment so no quoting is needed
 POWERSHELL_SCRIPT = """
@@ -42,7 +42,7 @@ def create_shortcut() -> str:
         **os.environ,
         "SHORTCUT_NAME": SHORTCUT_NAME,
         "SHORTCUT_TARGET": str(pythonw),
-        "SHORTCUT_WORKDIR": str(PROJECT_ROOT),
+        "SHORTCUT_WORKDIR": str(APP_ROOT),
         "SHORTCUT_ICON": str(ICON_PATH) if ICON_PATH.exists() else "",
     }
     result = subprocess.run(  # noqa: S603

@@ -46,14 +46,15 @@ def save_auth(file_path, auth):
     Path(file_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def spotify_session(client_id, client_secret):
-    # Set up authentication
+def spotify_session(client_id, client_secret, cache_path):
+    # Set up authentication; the login token is kept in `cache_path`, not in the working directory
     session = spotipy.Spotify(
         auth_manager=SpotifyOAuth(
             client_id=client_id,
             client_secret=client_secret,
             redirect_uri="http://127.0.0.1:8888/callback",
             scope="playlist-modify-private playlist-read-private",
+            cache_path=str(cache_path),
         ),
         # spotipy retries 429 and 5xx itself, honoring Spotify's Retry-After header
         requests_timeout=10,

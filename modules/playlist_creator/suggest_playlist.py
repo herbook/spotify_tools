@@ -18,6 +18,7 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, field_validator
 
+from modules.paths import APP_ROOT, TOKEN_CACHE_PATH
 from modules.playlist_creator.seed import Seed, read_seed
 from modules.spotify_api import (
     add_songs_to_playlist,
@@ -29,7 +30,6 @@ from modules.spotify_api import (
     spotify_session,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Text models with a free tier (per Google's pricing page), ordered from most to least powerful by generation and size
 FREE_TIER_MODELS = [
     "gemini-3.8-flash",
@@ -309,7 +309,9 @@ def run(  # noqa: PLR0913
     suggestions = answer.songs
     print(f"{model} suggested {len(suggestions)} songs\n")
 
-    session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+    session = spotify_session(
+        client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
+    )
     seen = seed_keys(songs=seed.songs)
     uris = []
     rows = []
@@ -342,7 +344,7 @@ def run(  # noqa: PLR0913
         print("No songs matched on Spotify, so no playlist was created")
 
     start_time = datetime.now().astimezone().strftime("%Y%m%d_%H%M")
-    log_path = PROJECT_ROOT / "log" / "playlist_creator"
+    log_path = APP_ROOT / "log" / "playlist_creator"
     log_path.mkdir(exist_ok=True, parents=True)
     log_file = log_path / f"{start_time}_[{seed_stem}]_ai_playlist_log.md"
     log_text = build_log(

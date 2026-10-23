@@ -10,6 +10,7 @@ import sys
 from collections.abc import Callable
 from contextlib import nullcontext, redirect_stdout
 from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
 from threading import Event
 
@@ -24,10 +25,8 @@ from PySide6.QtGui import (
     QPainter,
     QPalette,
     QPen,
-    QPixmap,
     QTextCursor,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -45,12 +44,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from modules.paths import RESOURCE_ROOT, TOKEN_CACHE_PATH
 from modules.playlist_creator.export_playlist_seed import export_seed
 from modules.playlist_creator.seed import parse_seed
 from modules.playlist_creator.suggest_playlist import (
     DEFAULT_MODEL,
     FREE_TIER_MODELS,
-    PROJECT_ROOT,
     Cancelled,
     list_models,
 )
@@ -58,14 +57,13 @@ from modules.playlist_creator.suggest_playlist import run as create_playlist_fro
 from modules.spotify_api import extract_playlist_id, load_auth, save_auth, spotify_session
 
 AUTH_PATH = Path.home() / ".spotipy"
-TEMPLATE_PATH = PROJECT_ROOT / "seeds" / "templates" / "seed_template_gui.txt"
-ICON_PATH = PROJECT_ROOT / "assets" / "icon.svg"
-ARROW_PATH = PROJECT_ROOT / "assets" / "arrow_down.svg"
+TEMPLATE_PATH = RESOURCE_ROOT / "seeds" / "templates" / "seed_template_gui.txt"
+ICON_PATH = RESOURCE_ROOT / "assets" / "icon.ico"
+ARROW_PATH = RESOURCE_ROOT / "assets" / "arrow_down.svg"
 APP_ID = "spotify_tools.playlist_creator"  # Lets Windows group the window under its own taskbar icon
-ICON_SIZES = (16, 32, 48, 64, 128, 256)
 LOG_LINK = "log"  # Link target in the result label that opens the log view
 TERMINAL_FONTS = ["Ubuntu Mono", "Consolas"]  # Ubuntu Mono is bundled; Consolas is the fallback
-FONT_PATH = PROJECT_ROOT / "assets" / "fonts" / "UbuntuMono-Regular.ttf"
+FONT_PATH = RESOURCE_ROOT / "assets" / "fonts" / "UbuntuMono-Regular.ttf"
 TERMINAL_STYLE = (
     "QPlainTextEdit { background-color: #300a24; color: #8ae234; border: 1px solid #5e2750;"
     " border-radius: 8px; padding: 6px; selection-background-color: #e95420; selection-color: #ffffff; }"
@@ -87,6 +85,9 @@ QComboBox QAbstractItemView { background-color: #1e1e1e; color: #e6e6e6; border:
 """
 SEED_LABEL = "gui_seed.txt"  # Names the log file and the default playlist name, as a seed file would
 README_URL = "https://github.com/herbook/spotify_tools"
+PACKAGE_NAME = "spotify_tools"  # Distribution name in pyproject.toml, the source of the version shown in About
+COPYRIGHT = "Copyright (c) 2026 Herman Böök"
+LICENSE_NAME = "PolyForm Strict License 1.0.0"
 SPOTIFY_KEYS = ("CLIENT_ID", "CLIENT_SECRET")
 ALL_KEYS = (*SPOTIFY_KEYS, "GEMINI_API_KEY")
 SECRET_KEYS = ("CLIENT_SECRET", "GEMINI_API_KEY")
@@ -124,17 +125,8 @@ def apply_dark_theme(app: QApplication) -> None:
 
 
 def load_icon() -> QIcon:
-    """Render the SVG icon at common sizes; this does not depend on Qt's SVG icon plugin being found."""
-    renderer = QSvgRenderer(str(ICON_PATH))
-    icon = QIcon()
-    for size in ICON_SIZES:
-        pixmap = QPixmap(size, size)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
-        icon.addPixmap(pixmap)
-    return icon
+    """Load the window and taskbar icon from the .ico file, the same icon the exe and shortcuts use."""
+    return QIcon(str(ICON_PATH))
 
 
 def open_playlist_link(link: str) -> None:
@@ -196,6 +188,29 @@ class Worker(QThread):
             self.succeeded.emit(result)
 
 
+class AboutDialog(QDialog):
+    """Shows the app name, version, copyright, license and the repository link."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        """Build the dialog; the version is read from the installed package metadata."""
+        super().__init__(parent)
+        self.setWindowTitle("About Playlist creator")
+
+        info = QLabel(
+            f"<b>Playlist creator</b> {version(PACKAGE_NAME)}<br>"
+            f"{COPYRIGHT}<br>"
+            f"License: {LICENSE_NAME}<br>"
+            f'<a href="{README_URL}">GitHub</a>'
+        )
+        info.setOpenExternalLinks(True)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(info)
+        layout.addWidget(buttons)
+
+
 class SettingsDialog(QDialog):
     """Form for the Spotify and Gemini credentials."""
 
@@ -225,11 +240,17 @@ class SettingsDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
+        about = QLabel('<a href="about">About</a>')
+        about.linkActivated.connect(lambda _link: AboutDialog(parent=self).exec())
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(about)
+        bottom_row.addStretch()
+        bottom_row.addWidget(buttons)
 
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addWidget(hint)
-        layout.addWidget(buttons)
+        layout.addLayout(bottom_row)
 
     def save(self) -> None:
         """Write the credentials to ~/.spotipy, keeping any other keys already in the file."""
@@ -509,7 +530,9 @@ class MainWindow(QWidget):
         auth = dict(self.auth)
 
         def task() -> tuple[str, str, int]:
-            session = spotify_session(client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"])
+            session = spotify_session(
+                client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
+            )
             return export_seed(session=session, playlist=url, start=1, end=None)
 
         def on_success(result: tuple[str, str, int]) -> None:

@@ -18,6 +18,8 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 ## Table of Contents
 
 - [Installation](#installation)
+- [Windows installer](#windows-installer)
+  - [Building the installer](#building-the-installer)
 - [Usage](#usage)
   - [Winamp to Spotify](#winamp-to-spotify)
   - [Playlist creator](#playlist-creator)
@@ -69,6 +71,25 @@ On the first run, a browser window opens and asks you to approve access. The too
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
 The default model is `gemini-3.8-flash`. Only free-tier models are offered: the window's model list shows the ones your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the script stops with Gemini's error and does not switch to another model.
+
+## Windows installer
+
+The playlist creator window is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
+
+- It installs for the current user only, so it needs no administrator rights. The default folder is `%LOCALAPPDATA%\Programs\PlaylistCreator`, and you can choose another folder that you can write to. A Start Menu shortcut and a Desktop shortcut are optional steps in the installer.
+- Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `.spotipy` in your user folder, as in the conda setup.
+- Everything else stays in the install folder: the logs in `log` and the Spotify login in `.cache` (keep that file private). The installed window has no terminal, so the paste-the-address fallback described under [Spotify](#spotify-developer-dashboard) is not available.
+- To update, run the newer installer and keep the same folder; the logs are kept. The uninstaller always removes `.cache` and asks whether to delete `log` and `seeds`.
+
+### Building the installer
+
+Building needs Python 3.13 and [Inno Setup](https://jrsoftware.org/isinfo.php) (tested with version 7). From the project root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Python <path to python.exe>
+```
+
+The script creates a clean virtual environment under `packaging\_work`, bundles the window with PyInstaller and compiles `packaging\installer.iss`. The result is `dist\PlaylistCreator-<version>-setup.exe`, with the version taken from `pyproject.toml`, so raise it there before building an update.
 
 ## Usage
 
@@ -189,3 +210,5 @@ Low match scores (around 0.6 to 0.8) are worth a look, because Spotify may have 
 Copyright (c) 2026 Herman Böök.
 
 This project is under the [PolyForm Strict License 1.0.0](LICENSE). In short, you may use the software for noncommercial purposes (personal use, noncommercial organizations), but you may not distribute it or make changes or new works based on it. Read the license for the exact terms.
+
+Get the latest version from [https://github.com/herbook/spotify_tools](https://github.com/herbook/spotify_tools); do not redistribute this installer.
