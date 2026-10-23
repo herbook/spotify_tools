@@ -18,6 +18,8 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 ## Table of Contents
 
 - [Installation](#installation)
+  - [Spotify](#spotify-developer-dashboard)
+  - [Gemini](#gemini-playlist-creator-only)
 - [GUI installer](#gui-installer)
   - [Building the installer](#building-the-installer)
 - [Usage](#usage)
@@ -50,11 +52,14 @@ These steps set up the command-line tools and the GUI from source. For the GUI o
 
    - `CLIENT_ID`: the Client ID of your Spotify app, see [Spotify](#spotify-developer-dashboard).
    - `CLIENT_SECRET`: the Client secret of the same Spotify app. Keep it private.
-   - `GEMINI_API_KEY`: your Google AI Studio API key, see [Gemini](#gemini-playlist-creator-only). Only the playlist creator needs it.
+   - `GEMINI_API_KEY`: your Google AI Studio API key, see [Gemini](#gemini-playlist-creator-only). Only the Playlist creator needs it.
 
 4. Run every command from the project root (the folder that contains `modules`), using `python -m ...` as shown below.
 
-### Spotify (developer dashboard)
+<!-- Keep the anchor: the GUI's Settings dialog links to it. -->
+<a id="spotify-developer-dashboard"></a>
+
+### Spotify (Spotify Developer Dashboard)
 
 Both tools need a Spotify app to get a client ID and secret.
 
@@ -64,19 +69,24 @@ Both tools need a Spotify app to get a client ID and secret.
 4. Open the app's **Settings** and copy the **Client ID** into `CLIENT_ID` and the **Client secret** into `CLIENT_SECRET` in `.spotipy`.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
-On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the program, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the project folder, so keep that file private too.
+On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the command, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the project folder, so keep that file private too.
 
-### Gemini (playlist creator only)
+<!-- Keep the anchor: the GUI's Settings dialog links to it. -->
+<a id="gemini-playlist-creator-only"></a>
+
+### Gemini (Google AI Studio)
+
+Gemini is only needed for the Playlist creator, not for Winamp to Spotify.
 
 1. Open [Google AI Studio](https://aistudio.google.com/apikey) and sign in with a Google account.
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model is `gemini-3.8-flash`. Only free-tier models are offered: the GUI's model list shows the ones your key can use, the most powerful first. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the script stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the script stops with Gemini's error and does not switch to another model.
+The default model is `gemini-3.8-flash`. Only free-tier models are offered, the most powerful first. The GUI's model dropdown lists those that the Gemini API reports for your key; the list is not a guarantee that a model has quota left. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the run stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the run stops with Gemini's error and does not switch to another model.
 
 ## GUI installer
 
-The playlist creator GUI is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
+The Playlist creator GUI is also available as a 64-bit Windows installer, so no Python or conda is needed. The command-line tools, including Winamp to Spotify, are not part of it. Get the installer from [GitHub releases](https://github.com/herbook/spotify_tools/releases); please do not redistribute it.
 
 - It installs for the current user only, so it needs no administrator rights. The default folder is `%LOCALAPPDATA%\Programs\PlaylistCreator`, and you can choose another folder that you can write to. A Start Menu shortcut and a Desktop shortcut are optional steps in the installer.
 - Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `%USERPROFILE%\.spotipy`, as in the conda setup.
@@ -116,7 +126,7 @@ Both steps take the folder that holds your Winamp exports as an argument, for ex
 
 ### Playlist creator
 
-The playlist creator works from a **seed file**: a plain text file in the `seeds` folder with one `Artist - Title` per line and optional settings. The format is explained in `seeds/templates/seed_template.txt`:
+The Playlist creator works from a **seed file**: a plain text file in the `seeds` folder with one `Artist - Title` per line and optional settings. The format is explained in `seeds/templates/seed_template.txt`:
 
 ```text
 criteria: slow boom bap rap, 85-95 BPM, dusty drums, laid-back flow, 90s feel
@@ -164,7 +174,11 @@ There are two ways to get a seed file. In both, the `criteria`, `name` and `song
    python -m modules.playlist_creator.export_playlist_seed <spotify playlist url> --start 11 --end 20 --output seeds\sub_set.txt
    ```
 
-2. **From your own list of songs.** Copy `seeds/templates/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the tool, keep the example songs and change only the settings.
+2. **From your own list of songs.** Copy `seeds/templates/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the Playlist creator, keep the example songs and change only the settings. Then run `suggest_playlist` on the new file:
+
+   ```powershell
+   python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
+   ```
 
 At least one seed song is needed; a seed file with only settings is rejected.
 
@@ -172,13 +186,13 @@ To get different results from the same seed, run it again with other `--criteria
 
 #### GUI
 
-The playlist creator also has a GUI, started from the project root:
+The Playlist creator also has a GUI, started from the project root:
 
 ```powershell
 python -m modules.playlist_creator.gui
 ```
 
-Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. While it runs, a spinning LP record is shown; clicking it stops the process. The GUI uses the default model, and `criteria`, `name` and `song_count` are set as lines in the seed text. Keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
+Enter the Spotify and Gemini keys under **Settings** (they are saved in `.spotipy`, the same file the commands read). Paste a playlist URL and press **Import playlist** to fill the seed text with its songs, or type the seed yourself; the text starts as `seeds/templates/seed_template_gui.txt`. **Create playlist** runs the same steps as the command and shows the progress, with a link to the new playlist at the end. While it runs, a spinning LP record is shown; clicking it stops the process. The model is chosen in the dropdown next to **Create playlist** (default `gemini-3.8-flash`), and `criteria`, `name` and `song_count` are set as lines in the seed text. When you start the GUI from source, keep the terminal open: if Spotify's approval page fails to load, the address is pasted there.
 
 ##### Desktop shortcut (Windows)
 
@@ -203,7 +217,7 @@ Low match scores (around 0.6 to 0.8) are worth a look, because Spotify may have 
 
 - Playlists are created private, and the Spotify API cannot create playlist folders, so move the new playlists into a folder in the Spotify app yourself.
 - A song is accepted only if its artist is named in the search text and its title is similar enough. Songs without an artist, or with a badly misspelled one, end up in the not-found log.
-- In the playlist creator, a different remix of a seed song may be suggested and added; the exact seed song is never added. The Winamp import counts all versions of a song as the same song.
+- In the Playlist creator, a different remix of a seed song may be suggested and added; the exact seed song is never added. The Winamp import counts all versions of a song as the same song.
 - Spotify's Developer Policy prohibits using Spotify content to train or feed machine learning or AI models. Exporting a playlist to a seed and sending its song names to Gemini may fall under that, so check the current [policy](https://developer.spotify.com/policy) before using it beyond personal experiments.
 - If Spotify answers with an authorization or rate-limit error (401, 403 or 429), the run stops instead of logging every remaining song as failed.
 
