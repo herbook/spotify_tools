@@ -88,7 +88,10 @@ def run_through_playlists(files, log_path):
                         )
 
                     line_chunk = lines[i : i + chunk_size]
-                    found, not_found = get_song_uris(session=session, playlist=line_chunk, seen=seen_songs)
+                    # Lenient: for an old playlist, a missing song costs more than a few wrong ones
+                    found, not_found = get_song_uris(
+                        session=session, playlist=line_chunk, seen=seen_songs, lenient=True
+                    )
 
                     if found:
                         add_songs_to_playlist(

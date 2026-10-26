@@ -25,8 +25,10 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
   - [Winamp to Spotify](#winamp-to-spotify)
   - [Playlist creator](#playlist-creator)
     - [Where the seed songs come from](#where-the-seed-songs-come-from)
+    - [Creating the playlist](#creating-the-playlist)
     - [GUI](#gui)
       - [Desktop shortcut (Windows)](#desktop-shortcut-windows)
+- [How songs are matched](#how-songs-are-matched)
 - [Logs](#logs)
 - [Notes and limits](#notes-and-limits)
 - [License](#license)
@@ -77,7 +79,7 @@ Gemini is only needed for the Playlist creator, not for Winamp to Spotify.
 2. Click **Create API key** (AI Studio creates a Google Cloud project for you the first time).
 3. Copy the key into `.spotipy` as `GEMINI_API_KEY`.
 
-The default model is `gemini-3.8-flash`. Only free-tier models are offered, the most powerful first. The GUI's model dropdown lists those that the Gemini API reports for your key; the list is not a guarantee that a model has quota left. Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the run stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the run stops with Gemini's error and does not switch to another model.
+Google may use free-tier content to improve its products, and the seed songs and criteria are what gets sent. The free tier has rate limits, including a small number of requests per day for each model; how the Playlist creator handles models and quota is described under [Creating the playlist](#creating-the-playlist).
 
 ## GUI installer
 
@@ -128,20 +130,6 @@ Wu-Tang Clan - C.R.E.A.M.
 - `song_count` is how many songs to suggest (default 30).
 - For several artists, use commas, for example `Chicane, Moya Brennan - Saltwater`.
 
-Once you have a seed file, create the playlist with:
-
-```powershell
-python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
-```
-
-The options `--criteria`, `--song-count`, `--name` and `--model` override the settings in the seed file, for example:
-
-```powershell
-python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --song-count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
-```
-
-While it runs, the command window shows a live progress counter and any songs that were not found or skipped. At the end it prints the playlist link, Gemini's summary of the playlist, the number of songs added and skipped, and the log path. A request that gets no data for 500 seconds is cancelled and retried.
-
 #### Where the seed songs come from
 
 There are two ways to get a seed file. In both, the `criteria`, `name` and `song_count` settings are optional, and you can set them in the file or with the command-line options.
@@ -159,15 +147,29 @@ There are two ways to get a seed file. In both, the `criteria`, `name` and `song
    python -m modules.playlist_creator.export_playlist_seed <spotify playlist url> --start 11 --end 20 --output seeds\sub_set.txt
    ```
 
-2. **From your own list of songs.** Copy `seeds/templates/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the Playlist creator, keep the example songs and change only the settings. Then run `suggest_playlist` on the new file:
-
-   ```powershell
-   python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
-   ```
+2. **From your own list of songs.** Copy `seeds/templates/seed_template.txt` to a new name and replace the three example songs (Nas, Wu-Tang Clan, A Tribe Called Quest) with songs you like. Songs you type yourself work like exported ones. You can also copy lines from several exported seeds into one file, or add a few songs of your own to an exported one. To just try the Playlist creator, keep the example songs and change only the settings. Then create the playlist as described under [Creating the playlist](#creating-the-playlist).
 
 At least one seed song is needed; a seed file with only settings is rejected.
 
+#### Creating the playlist
+
+Once you have a seed file, create the playlist with:
+
+```powershell
+python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt
+```
+
+The options `--criteria`, `--song-count`, `--name` and `--model` override the settings in the seed file, for example:
+
+```powershell
+python -m modules.playlist_creator.suggest_playlist seeds\my_seed.txt --song-count 50 --criteria "more instrumental, slower" --model gemini-3.5-flash-lite
+```
+
+While it runs, the command window shows a live progress counter and any songs that were not found or skipped. At the end it prints the playlist link, Gemini's summary of the playlist, the number of songs added and skipped, and the log path. A request that gets no data for 500 seconds is cancelled and retried.
+
 To get different results from the same seed, run it again with other `--criteria`, `--song-count` or `--model` values, or edit `criteria:` in the file. Each run creates a new playlist and a new log, so rename or delete the ones you don't want in Spotify.
+
+**Models and quota.** The default model is `gemini-3.8-flash`. Only free-tier models are offered, the most powerful first. The GUI's model dropdown lists those that the Gemini API reports for your key; the list is not a guarantee that a model has quota left. When a model's quota is used up or it is no longer available, the next model in the free-tier list is tried, and the output says which one was used (the log shows it too). When none is left, the run stops with a message that says which quota it was and when to retry; every attempt counts, including retries after network errors. If Gemini is overloaded or has a temporary server error, the request is retried a few times with growing delays; if it keeps failing, the run stops with Gemini's error and does not switch to another model.
 
 #### GUI
 
@@ -189,6 +191,18 @@ python -m modules.playlist_creator.create_shortcut
 
 It creates `Playlist creator.lnk` on the desktop, which starts the GUI without a console and points at that environment, so run the command again if you move or recreate it. The shortcut has no terminal, so before first using it, start the GUI once from the project root with `python -m modules.playlist_creator.gui` and approve the Spotify sign-in there.
 
+## How songs are matched
+
+Both tools match songs the same way (the code is in `modules/spotify_api.py`). The input is one line per song: `Artist Title` from a cleaned Winamp list, or the artist and title of a Gemini suggestion.
+
+1. **Search.** The line is searched on Spotify as written. The top 10 results are scored from 0 to 1, and the best one is used; when scores tie, Spotify's own order decides.
+2. **Artist.** A result counts only if one of its artists is named in the line. Small spelling differences are tolerated (`Chilli` for `Chili`, `Silver Chair` for `Silverchair`), and `the`, `a` and `and` are ignored. Winamp to Spotify is more lenient: one distinctive word of the artist's name is enough (`Cent` finds `50 Cent`), but generic words such as `DJ` and `MC` do not count. A line with only an artist and no title is never added.
+3. **Title.** The words left after removing the artist are compared with the track's title only, so a different song by the right artist scores low. Extra words in the line (track numbers, `feat.`, album names) do not lower the score, and suffixes such as `Remastered 2011` or `Radio Edit` are ignored.
+4. **Versions.** Karaoke and tribute versions never match. Live, instrumental and cover versions rank slightly below the original.
+5. **Remixes.** If the line names a specific remix, such as `Chill Out Mix`, the result should be that remix. Playlist creator rejects a different remix; Winamp to Spotify ranks it below the original recording. The original recording is accepted when the remix is not on Spotify, but it ranks below the requested remix. A plain `Remix` in the line accepts any remix.
+6. **Threshold.** A song is added only if its score reaches 0.75 (Playlist creator) or 0.6 (Winamp to Spotify). Winamp to Spotify is more lenient because, for an old playlist, a missing song costs more than a few wrong ones. Songs below the threshold are not added; they are logged as not found with the best candidate and its score.
+7. **Duplicates.** Winamp to Spotify treats all versions of a song as the same song. Playlist creator treats a different remix as a different song, but `Original Mix` and remaster labels count as the same song, and the seed songs themselves are never added.
+
 ## Logs
 
 Logs are written under `log` in the project folder (in the install folder when you use the installer).
@@ -196,12 +210,12 @@ Logs are written under `log` in the project folder (in the install folder when y
 - `log\winamp_to_spotify\`: per playlist created (`all_files` when merged, otherwise per input file), a log of added songs and one of songs that were not found or skipped as duplicates, plus a list of the created playlists with their links.
 - `log\playlist_creator\`: `<time>_[<seed name>]_ai_playlist_log.md`, a Markdown table with one row per suggested song: whether it was added or skipped, the song Gemini suggested, what Spotify returned (with a match score from 0 to 1) and Gemini's reason. The header has a link to the created playlist.
 
-Low match scores (around 0.6 to 0.8) are worth a look, because Spotify may have returned a different version or remix of the song.
+Match scores below about 0.9 are worth a look, because Spotify may have returned a different version or remix of the song. Songs that were not added are listed in the not-found logs with their best candidate; see [How songs are matched](#how-songs-are-matched) for the thresholds.
 
 ## Notes and limits
 
 - Playlists are created private, and the Spotify API cannot create playlist folders, so move the new playlists into a folder in the Spotify app yourself.
-- A song is accepted only if its artist is named in the search text and its title is similar enough. Songs without an artist, or with a badly misspelled one, end up in the not-found log.
+- Lines without an artist, with only an artist and no title, or with a badly misspelled artist end up in the not-found log; see [How songs are matched](#how-songs-are-matched).
 - In the Playlist creator, a different remix of a seed song may be suggested and added; the exact seed song is never added. The Winamp import counts all versions of a song as the same song.
 - Spotify's Developer Policy prohibits using Spotify content to train or feed machine learning or AI models. Exporting a playlist to a seed and sending its song names to Gemini may fall under that, so check the current [policy](https://developer.spotify.com/policy) before using it beyond personal experiments.
 - If Spotify answers with an authorization or rate-limit error (401, 403 or 429), the run stops instead of logging every remaining song as failed.
@@ -212,4 +226,4 @@ Copyright (c) 2026 Herman Böök.
 
 This project is under the [PolyForm Strict License 1.0.0](LICENSE). In short, you may use the software for noncommercial purposes (personal use, noncommercial organizations), but you may not distribute it or make changes or new works based on it. Read the license for the exact terms.
 
-Get the latest version from [https://github.com/herbook/spotify_tools](https://github.com/herbook/spotify_tools); do not redistribute this installer.
+Get the latest version from [https://github.com/herbook/spotify_tools](https://github.com/herbook/spotify_tools).
