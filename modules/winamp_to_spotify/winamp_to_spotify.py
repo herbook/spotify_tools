@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from modules.paths import TOKEN_CACHE_PATH
+from modules.paths import AUTH_PATH, TOKEN_CACHE_PATH
 from modules.spotify_api import (
     add_songs_to_playlist,
     create_playlist,
@@ -51,7 +51,7 @@ def build_playlists(files, start_time):
 
 
 def run_through_playlists(files, log_path):
-    auth = load_auth(Path.home() / ".spotipy")
+    auth = load_auth(AUTH_PATH)
     session = spotify_session(
         client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
     )

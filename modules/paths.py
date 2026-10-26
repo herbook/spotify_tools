@@ -9,3 +9,5 @@ APP_ROOT = Path(sys.executable).parent if FROZEN else Path(__file__).resolve().p
 # Read-only bundled files (assets, seed templates); PyInstaller unpacks them to sys._MEIPASS
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", APP_ROOT))
 TOKEN_CACHE_PATH = APP_ROOT / ".cache"
+# Spotify and Gemini credentials, shared by the GUI and the command-line tools
+AUTH_PATH = Path.home() / ".spotipy"

@@ -9,7 +9,6 @@ import ctypes
 import sys
 from collections.abc import Callable
 from contextlib import nullcontext, redirect_stdout
-from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from threading import Event
@@ -44,7 +43,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from modules.paths import RESOURCE_ROOT, TOKEN_CACHE_PATH
+from modules.paths import AUTH_PATH, RESOURCE_ROOT, TOKEN_CACHE_PATH
 from modules.playlist_creator.export_playlist_seed import export_seed
 from modules.playlist_creator.seed import parse_seed
 from modules.playlist_creator.suggest_playlist import (
@@ -56,7 +55,6 @@ from modules.playlist_creator.suggest_playlist import (
 from modules.playlist_creator.suggest_playlist import run as create_playlist_from_seed
 from modules.spotify_api import extract_playlist_id, load_auth, save_auth, spotify_session
 
-AUTH_PATH = Path.home() / ".spotipy"
 TEMPLATE_PATH = RESOURCE_ROOT / "seeds" / "templates" / "seed_template_gui.txt"
 ICON_PATH = RESOURCE_ROOT / "assets" / "icon.ico"
 ARROW_PATH = RESOURCE_ROOT / "assets" / "arrow_down.svg"
@@ -79,12 +77,15 @@ QLineEdit { background-color: #1e1e1e; color: #e6e6e6; border: 1px solid #555753
 QTextBrowser { border: 1px solid #555753; border-radius: 8px; padding: 6px; }
 QComboBox { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #555753; border-radius: 8px;
     padding: 5px 10px; }
-QComboBox:disabled { background-color: #2f3133; color: #808080; }\nQComboBox::drop-down { border: none; width: 22px; }
+QComboBox:disabled { background-color: #2f3133; color: #808080; }
+QComboBox::drop-down { border: none; width: 22px; }
 QComboBox QAbstractItemView { background-color: #1e1e1e; color: #e6e6e6; border: 1px solid #555753;
     selection-background-color: #2f65ca; }
 """
-SEED_LABEL = "gui_seed.txt"  # Names the log file and the default playlist name, as a seed file would
-README_URL = "https://github.com/herbook/spotify_tools"
+SEED_LABEL = "Manual seed"  # Seed name in the log when the seed was not imported from Spotify
+WINDOW_WIDTH = 900
+WINDOW_HEIGHT = 800
+REPO_URL = "https://github.com/herbook/spotify_tools"
 PACKAGE_NAME = "spotify_tools"  # Distribution name in pyproject.toml, the source of the version shown in About
 COPYRIGHT = "Copyright (c) 2026 Herman Böök"
 LICENSE_NAME = "PolyForm Strict License 1.0.0"
@@ -122,11 +123,6 @@ def apply_dark_theme(app: QApplication) -> None:
     app.setStyleSheet(
         ROUNDED_STYLE + f"QComboBox::down-arrow {{ image: url({ARROW_PATH.as_posix()}); width: 12px; height: 12px; }}"
     )
-
-
-def load_icon() -> QIcon:
-    """Load the window and taskbar icon from the .ico file, the same icon the exe and shortcuts use."""
-    return QIcon(str(ICON_PATH))
 
 
 def open_playlist_link(link: str) -> None:
@@ -200,7 +196,7 @@ class AboutDialog(QDialog):
             f"<b>Playlist creator</b> {version(PACKAGE_NAME)}<br>"
             f"{COPYRIGHT}<br>"
             f"License: {LICENSE_NAME}<br>"
-            f'<a href="{README_URL}">GitHub</a>'
+            f'<a href="{REPO_URL}">GitHub</a>'
         )
         info.setOpenExternalLinks(True)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -232,8 +228,8 @@ class SettingsDialog(QDialog):
 
         hint = QLabel(
             f"Saved in {AUTH_PATH}<br>"
-            f'How to get the keys: <a href="{README_URL}#spotify-developer-dashboard">Spotify</a> | '
-            f'<a href="{README_URL}#gemini-playlist-creator-only">Gemini</a>'
+            f'How to get the keys: <a href="{REPO_URL}#spotify-spotify-developer-dashboard">Spotify</a> | '
+            f'<a href="{REPO_URL}#gemini-google-ai-studio">Gemini</a>'
         )
         hint.setWordWrap(True)
         hint.setOpenExternalLinks(True)
@@ -447,7 +443,7 @@ class MainWindow(QWidget):
         self.model_combo.setCurrentText(keep)
 
     def open_link(self, link: str) -> None:
-        """Open the rendered log for the log link; open a playlist link in the Spotify app if it opens, else the browser."""
+        """Open the rendered log for the log link, and any other link as a playlist."""
         if link == LOG_LINK:
             LogDialog(log_file=self.log_file, parent=self).exec()
         else:
@@ -553,8 +549,6 @@ class MainWindow(QWidget):
 
         auth = dict(self.auth)
         model = self.model_combo.currentText()
-        # A 'name:' line in the seed wins; otherwise the time tells the playlists apart
-        name = None if "name" in seed.settings else f"AI suggestions [{datetime.now().astimezone():%Y-%m-%d %H:%M}]"
         cancel = Event()
 
         def task() -> tuple[str | None, Path]:
@@ -563,7 +557,7 @@ class MainWindow(QWidget):
                 seed_label=SEED_LABEL,
                 criteria=None,
                 song_count=None,
-                name=name,
+                name=None,
                 model=model,
                 auth=auth,
                 cancel=cancel,
@@ -577,18 +571,9 @@ class MainWindow(QWidget):
         self.start(task=task, on_success=on_success, cancel=cancel)
 
 
-def main() -> None:
-    """Open the window."""
-    if sys.platform == "win32":
-        # Without this, Windows shows the Python icon in the taskbar instead of the app icon
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
-
-    app = QApplication(sys.argv)
-    app.setWindowIcon(load_icon())
-    QFontDatabase.addApplicationFont(str(FONT_PATH))
-    apply_dark_theme(app=app)
-    window = MainWindow()
-    window.resize(900, 800)
+def fit_window_to_seed(window: MainWindow, max_height: int) -> None:
+    """Size the window so the whole seed text shows without a scrollbar, up to `max_height`."""
+    window.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
     window.layout().activate()
     seed_edit = window.seed_edit
     seed_needed = (
@@ -599,8 +584,21 @@ def main() -> None:
     )
     # The seed box gets 3 of the 5 stretch parts, so the window grows by 5/3 of the missing seed height
     extra_height = max(0, seed_needed - seed_edit.height()) * 5 / 3
-    window_height = min(int(800 + extra_height), app.primaryScreen().availableGeometry().height())
-    window.resize(900, window_height)
+    window.resize(WINDOW_WIDTH, min(int(WINDOW_HEIGHT + extra_height), max_height))
+
+
+def main() -> None:
+    """Open the window."""
+    if sys.platform == "win32":
+        # Without this, Windows shows the Python icon in the taskbar instead of the app icon
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+
+    app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(str(ICON_PATH)))
+    QFontDatabase.addApplicationFont(str(FONT_PATH))
+    apply_dark_theme(app=app)
+    window = MainWindow()
+    fit_window_to_seed(window=window, max_height=app.primaryScreen().availableGeometry().height())
     window.show()
     sys.exit(app.exec())
 

@@ -7,7 +7,7 @@ Two tools that create private Spotify playlists:
 - **Winamp to Spotify** converts old Winamp playlist exports (`.htm`, `.html`, `.txt`) into Spotify playlists. Each export is cleaned into a plain list of "Artist Title" lines, every line is searched on Spotify, and the best matches go into a new playlist.
 - **Playlist creator** asks Google Gemini for songs similar to a set of seed songs, based on criteria you write (genre, BPM, beat or rap style, mood, ...). Every suggestion is looked up on Spotify, so invented songs are dropped, and the matches go into a new playlist. The seed songs themselves are never suggested, and a playlist never contains the same song twice.
   - Gemini chooses the songs from its own knowledge of music. Spotify's recommendations, audio data and your listening history are not used; Spotify is only searched to check that each suggested song exists.
-  - Gemini is told to weigh, in this order: your criteria, genre and subgenre, mood and energy, tempo and groove, era and production sound, vocals, instrumentation and lyrical themes. Without criteria, it infers what the seed songs have in common.
+  - Gemini is told to weigh, in this order: your criteria, genre and subgenre, energy level, tempo and groove, era and production, vocals, instrumentation and lyrical themes. Without criteria, it infers what the seed songs have in common.
   - Popularity is not a factor, so deep cuts are as likely as hits. Original studio versions are preferred over live versions and covers, and there are at most three songs per artist, unless your criteria say otherwise.
   - Suggested songs that Spotify cannot match are skipped, so the playlist can end up with fewer songs than requested.
 
@@ -18,14 +18,15 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 ## Table of Contents
 
 - [Installation](#installation)
-  - [Spotify](#spotify-developer-dashboard)
-  - [Gemini](#gemini-playlist-creator-only)
+  - [Spotify](#spotify-spotify-developer-dashboard)
+  - [Gemini](#gemini-google-ai-studio)
 - [GUI installer](#gui-installer)
-  - [Building the installer](#building-the-installer)
 - [Usage](#usage)
   - [Winamp to Spotify](#winamp-to-spotify)
   - [Playlist creator](#playlist-creator)
+    - [Where the seed songs come from](#where-the-seed-songs-come-from)
     - [GUI](#gui)
+      - [Desktop shortcut (Windows)](#desktop-shortcut-windows)
 - [Logs](#logs)
 - [Notes and limits](#notes-and-limits)
 - [License](#license)
@@ -50,14 +51,11 @@ These steps set up the command-line tools and the GUI from source. For the GUI o
    GEMINI_API_KEY=<Gemini API key>
    ```
 
-   - `CLIENT_ID`: the Client ID of your Spotify app, see [Spotify](#spotify-developer-dashboard).
+   - `CLIENT_ID`: the Client ID of your Spotify app, see [Spotify](#spotify-spotify-developer-dashboard).
    - `CLIENT_SECRET`: the Client secret of the same Spotify app. Keep it private.
-   - `GEMINI_API_KEY`: your Google AI Studio API key, see [Gemini](#gemini-playlist-creator-only). Only the Playlist creator needs it.
+   - `GEMINI_API_KEY`: your Google AI Studio API key, see [Gemini](#gemini-google-ai-studio). Only the Playlist creator needs it.
 
 4. Run every command from the project root (the folder that contains `modules`), using `python -m ...` as shown below.
-
-<!-- Keep the anchor: the GUI's Settings dialog links to it. -->
-<a id="spotify-developer-dashboard"></a>
 
 ### Spotify (Spotify Developer Dashboard)
 
@@ -70,9 +68,6 @@ Both tools need a Spotify app to get a client ID and secret.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
 On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the command, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the project folder, so keep that file private too.
-
-<!-- Keep the anchor: the GUI's Settings dialog links to it. -->
-<a id="gemini-playlist-creator-only"></a>
 
 ### Gemini (Google AI Studio)
 
@@ -90,18 +85,8 @@ The Playlist creator GUI is also available as a 64-bit Windows installer, so no 
 
 - It installs for the current user only, so it needs no administrator rights. The default folder is `%LOCALAPPDATA%\Programs\PlaylistCreator`, and you can choose another folder that you can write to. A Start Menu shortcut and a Desktop shortcut are optional steps in the installer.
 - Set up Spotify and Gemini as described above, then enter the keys under **Settings**. They are saved in `%USERPROFILE%\.spotipy`, as in the conda setup.
-- Everything else stays in the install folder: the logs in `log` and the Spotify login in `.cache` (keep that file private). The app installed this way has no terminal, so the paste-the-address fallback described under [Spotify](#spotify-developer-dashboard) is not available.
+- Everything else stays in the install folder: the logs in `log` and the Spotify login in `.cache` (keep that file private). The app installed this way has no terminal, so the paste-the-address fallback described under [Spotify](#spotify-spotify-developer-dashboard) is not available.
 - To update, run the newer installer and keep the same folder; the logs are kept. The uninstaller always removes `.cache` and asks whether to delete `log` and `seeds` if they exist.
-
-### Building the installer
-
-Building needs Python 3.13 and [Inno Setup](https://jrsoftware.org/isinfo.php) (tested with version 7). From the project root:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Python <path to python.exe>
-```
-
-The script creates a clean virtual environment under `packaging\_work`, bundles the GUI with PyInstaller and compiles `packaging\installer.iss`. The result is `dist\PlaylistCreator-<version>-setup.exe`, with the version taken from `pyproject.toml`, so raise it there before building an update.
 
 ## Usage
 
@@ -139,7 +124,7 @@ Wu-Tang Clan - C.R.E.A.M.
 
 - Lines starting with `#` and blank lines are ignored.
 - `criteria` tells the AI what the new playlist should be like. Without it, the AI infers what the seed songs have in common.
-- `name` is the new playlist's name (default `AI suggestions [<seed file name>]`).
+- `name` is the new playlist's name (default `AI suggestions [<Spotify playlist name>] <date and time>` for a seed exported from Spotify, otherwise `AI suggestions [<date and time>]`).
 - `song_count` is how many songs to suggest (default 30).
 - For several artists, use commas, for example `Chicane, Moya Brennan - Saltwater`.
 

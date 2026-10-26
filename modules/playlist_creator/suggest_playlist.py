@@ -18,8 +18,8 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, field_validator
 
-from modules.paths import APP_ROOT, TOKEN_CACHE_PATH
-from modules.playlist_creator.seed import Seed, read_seed
+from modules.paths import APP_ROOT, AUTH_PATH, TOKEN_CACHE_PATH
+from modules.playlist_creator.seed import Seed, read_seed, safe_file_name
 from modules.spotify_api import (
     add_songs_to_playlist,
     create_playlist,
@@ -53,12 +53,16 @@ SIMILARITY_GUIDE = """\
 How to judge whether a song is similar, in order of importance:
 1. The user's criteria, which override everything else.
 2. Genre and subgenre (for example boom bap, not just hip hop).
-3. Mood, vibe and energy level.
+3. Energy level (low, medium or high), judged from rhythmic intensity, dynamics (quiet or loud) and arrangement density.
 4. Tempo (BPM range) and groove, including beat or rap style.
-5. Era and production sound (for example dusty and sample-based versus polished and modern).
+5. Era and production: sample-based or live instruments, analog or digital, lo-fi or clean.
 6. Vocals: delivery or flow, singer type and language.
 7. Instrumentation and lyrical themes.
 Where the criteria say nothing, infer what the seed songs have in common and match that.
+If the criteria conflict with the seed songs (for example a different genre or tempo), follow the criteria and use
+the seed songs only for what the criteria leave open.
+Try to judge every attribute (genre, tempo, era, vocals, and so on) only from what you actually know of the song.
+Draw on the seed as a whole rather than clustering around one or two songs, and vary the suggestions.
 Popularity is irrelevant: do not favour well-known songs, deep cuts are fine.
 Prefer original studio versions; avoid live versions and covers unless the criteria ask for them.
 Unless the criteria say otherwise, suggest at most three songs per artist."""
@@ -102,7 +106,8 @@ def build_prompt(songs: list[str], criteria: str, song_count: int) -> str:
         f"Criteria: {criteria}\n\n"
         f"{SIMILARITY_GUIDE}\n\n"
         f"Suggest {song_count} songs that match the criteria and are similar to the seed songs. "
-        "For each song give the artist, the exact title and one short sentence on why it fits. "
+        "For each song give the artist, the exact title and one short sentence naming the criteria or "
+        "seed qualities it matches. "
         "For a remix or other version, put the mix name in the title as it appears on Spotify, "
         "for example 'Title - Artist Remix'. "
         "Finally, write a summary of two or three sentences on the overall character of the playlist "
@@ -238,6 +243,12 @@ def table_cell(text: str) -> str:
     return " ".join(text.split()).replace("|", "\\|")
 
 
+def default_playlist_name(source: str | None) -> str:
+    """Name a playlist by the time, preceded by the source Spotify playlist's name when the seed came from one."""
+    now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+    return f"AI suggestions [{source}] {now}" if source else f"AI suggestions [{now}]"
+
+
 def build_log(  # noqa: PLR0913
     *,
     seed_name: str,
@@ -286,8 +297,8 @@ def run(  # noqa: PLR0913
 ) -> tuple[str | None, Path]:
     """Create a private playlist of songs that Gemini suggests for the seed; returns the playlist link and log path.
 
-    `seed_label` is a file-like name (for example 'my_seed.txt') used in the log, the log file name and
-    the default playlist name; `auth` needs CLIENT_ID, CLIENT_SECRET and GEMINI_API_KEY.
+    `seed_label` names the seed in the log and the log file name (for example 'my_seed.txt' or 'Manual seed'); a seed
+    imported from Spotify is named after its playlist instead. `auth` needs CLIENT_ID, CLIENT_SECRET and GEMINI_API_KEY.
     Setting `cancel` stops the run with Cancelled before any playlist is created.
     """
     cancel = cancel or Event()
@@ -295,10 +306,11 @@ def run(  # noqa: PLR0913
         msg = f"No songs found in {seed_label}"
         raise SystemExit(msg)
 
-    seed_stem = Path(seed_label).stem
+    seed_name = f"Spotify playlist seed [{seed.source}]" if seed.source else seed_label
+    seed_stem = safe_file_name(seed.source) if seed.source else Path(seed_label).stem
     criteria = criteria or seed.settings.get("criteria") or DEFAULT_CRITERIA
     song_count = song_count or int(seed.settings.get("song_count") or DEFAULT_SONG_COUNT)
-    name = name or seed.settings.get("name") or f"AI suggestions [{seed_stem}]"
+    name = name or seed.settings.get("name") or default_playlist_name(source=seed.source)
 
     answer, model = suggest_or_exit(
         api_key=auth["GEMINI_API_KEY"],
@@ -348,7 +360,7 @@ def run(  # noqa: PLR0913
     log_path.mkdir(exist_ok=True, parents=True)
     log_file = log_path / f"{start_time}_[{seed_stem}]_ai_playlist_log.md"
     log_text = build_log(
-        seed_name=seed_label,
+        seed_name=seed_name,
         criteria=criteria,
         model=model,
         playlist_name=name,
@@ -366,7 +378,7 @@ def run(  # noqa: PLR0913
 
 def main(seed_path: Path, criteria: str | None, song_count: int | None, name: str | None, model: str) -> None:
     """Create a private Spotify playlist of songs that Gemini suggests for the seed file."""
-    auth = load_auth(Path.home() / ".spotipy")
+    auth = load_auth(AUTH_PATH)
     if not auth.get("GEMINI_API_KEY"):
         msg = "Add a GEMINI_API_KEY=... line to ~/.spotipy"
         raise SystemExit(msg)

@@ -5,16 +5,16 @@ settings, and is easy to edit by hand. It is the input for suggest_playlist.py.
 """
 
 import argparse
-import re
 from pathlib import Path
 
-from modules.paths import APP_ROOT, TOKEN_CACHE_PATH
+from modules.paths import APP_ROOT, AUTH_PATH, TOKEN_CACHE_PATH
+from modules.playlist_creator.seed import safe_file_name
 from modules.spotify_api import extract_playlist_id, get_playlist_items, get_playlist_name, load_auth, spotify_session
 
 SEEDS_PATH = APP_ROOT / "seeds"
 SEED_HEADER = """\
 # Seed file: one "Artist - Title" per line. Lines starting with # are ignored.
-# Source: Spotify playlist "{name}" ({id}), positions {start}-{end}
+# Source: Spotify playlist "{name}" ({id}){positions}
 
 # Optional settings, remove the leading # to use them:
 # criteria: describe what the new playlist should be like
@@ -44,13 +44,14 @@ def export_seed(session, playlist: str, start: int, end: int | None) -> tuple[st
     playlist_name = get_playlist_name(session=session, playlist_id=playlist_id)
     items = get_playlist_items(session=session, playlist_id=playlist_id)
     songs = build_song_lines(items=items, start=start, end=end)
-    header = SEED_HEADER.format(name=playlist_name, id=playlist_id, start=start, end=end or "end")
+    positions = "" if start == 1 and end is None else f", positions {start}-{end or 'end'}"
+    header = SEED_HEADER.format(name=playlist_name, id=playlist_id, positions=positions)
     return playlist_name, header + "\n" + "\n".join(songs) + "\n", len(songs)
 
 
 def main(playlist: str, output_path: Path | None, start: int, end: int | None) -> None:
     """Export a Spotify playlist, or a position range of it, into a seed text file."""
-    auth = load_auth(Path.home() / ".spotipy")
+    auth = load_auth(AUTH_PATH)
     session = spotify_session(
         client_id=auth["CLIENT_ID"], client_secret=auth["CLIENT_SECRET"], cache_path=TOKEN_CACHE_PATH
     )
@@ -58,8 +59,7 @@ def main(playlist: str, output_path: Path | None, start: int, end: int | None) -
     playlist_name, seed_text, song_count = export_seed(session=session, playlist=playlist, start=start, end=end)
 
     if output_path is None:
-        file_name = re.sub(r'[<>:"/\\|?*]', "_", playlist_name)
-        output_path = SEEDS_PATH / f"{file_name}.txt"
+        output_path = SEEDS_PATH / f"{safe_file_name(playlist_name)}.txt"
 
     output_path.parent.mkdir(exist_ok=True, parents=True)
     with Path.open(output_path, "w", encoding="utf-8") as seed_file:

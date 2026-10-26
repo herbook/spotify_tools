@@ -9,7 +9,8 @@
 #
 # SETTINGS (optional "key: value" lines, anywhere in the text)
 # - criteria: what the new playlist should be like (genre, BPM range, rap or beat style, era, mood, ...)
-# - name: name of the new playlist (default: AI suggestions [<date and time>])
+# - name: name of the new playlist (default: AI suggestions [<imported playlist name>] <date and time>, or
+#   AI suggestions [<date and time>] if the seed was not imported)
 # - song_count: how many songs the AI should suggest (default: 30)
 #
 # WHAT TO WRITE IN CRITERIA
