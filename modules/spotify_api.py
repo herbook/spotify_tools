@@ -423,7 +423,7 @@ def get_playlist_items(session: spotipy.Spotify, playlist_id: str) -> list[dict]
         try:
             page = session.playlist_items(playlist_id, limit=50, offset=len(items), additional_types=("track",))
         except SpotifyException as e:
-            if e.http_status == 403:  # noqa: PLR2004
+            if e.http_status == 403:
                 # Development-mode apps may only read the items of playlists the user owns or collaborates on
                 msg = (
                     "Spotify does not allow reading this playlist's songs. A Spotify app in Development Mode can only"
