@@ -19,6 +19,7 @@ Both tools use the Spotify Web API through `spotipy`, with the shared helpers in
 
 - [Installation](#installation)
   - [Spotify](#spotify-spotify-developer-dashboard)
+    - [Sharing one Spotify app with other users](#sharing-one-spotify-app-with-other-users)
   - [Gemini](#gemini-google-ai-studio)
 - [GUI installer](#gui-installer)
 - [Usage](#usage)
@@ -70,6 +71,17 @@ Both tools need a Spotify app to get a client ID and secret.
 5. The app stays in Development Mode, which is enough for your own account. It has limits on users and requests.
 
 On the first run, a browser window opens and asks you to approve access. The tools ask for permission to read, create and edit your private playlists (`playlist-read-private` and `playlist-modify-private`). If, after you approve, the browser shows an error page such as "This site can't be reached", copy the full address from the browser's address bar (it starts with `http://127.0.0.1:8888/callback`) and paste it into the terminal where you started the command, at the prompt asking for the redirect URL, then press Enter. spotipy keeps the login in a `.cache` file in the project folder, so keep that file private too.
+
+If you change `CLIENT_ID` to a different Spotify app, delete the `.cache` file before the next run. The saved login belongs to the old app, and Spotify rejects it with `invalid_client`. Changing the Client ID in the GUI's **Settings** deletes the file for you.
+
+#### Sharing one Spotify app with other users
+
+Other people can use your app's `CLIENT_ID` and `CLIENT_SECRET`. Each of them logs in with their own Spotify account, and the playlists are created in that account. They get no access to your account, only to their own playlists.
+
+- In the dashboard, add each user under **User Management** with the email of their Spotify account. A Development Mode app allows 5 users, and anyone not on the list gets a 403 error.
+- The app owner needs an active Spotify Premium subscription; the other users do not.
+- Share the client secret only with people you trust. If it leaks, reset it in the dashboard and update `CLIENT_SECRET` for everyone.
+- Anyone who needs more than that can create their own Spotify app instead.
 
 ### Gemini (Google AI Studio)
 
@@ -134,7 +146,7 @@ Wu-Tang Clan - C.R.E.A.M.
 
 There are two ways to get a seed file. In both, the `criteria`, `name` and `song_count` settings are optional, and you can set them in the file or with the command-line options.
 
-1. **From a Spotify playlist, or part of one.** Export the playlist into a seed file, edit the file if you like (remove songs, add `criteria:`), then run `suggest_playlist` on it. You can use a playlist link, URI or ID. Spotify's documentation says only playlists you own or collaborate on can be read, but playlists of other users have worked in practice; if Spotify refuses one, the export stops with an error.
+1. **From a Spotify playlist, or part of one.** Export the playlist into a seed file, edit the file if you like (remove songs, add `criteria:`), then run `suggest_playlist` on it. You can use a playlist link, URI or ID. Apps created since February 2026 can only read the songs of playlists you own or collaborate on, and the export fails with a 403 error for any other playlist. To use someone else's playlist, add its songs to a playlist of your own first.
 
    ```powershell
    python -m modules.playlist_creator.export_playlist_seed <spotify playlist url>

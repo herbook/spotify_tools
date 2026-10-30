@@ -344,7 +344,6 @@ def run(  # noqa: PLR0913
     if uris:
         playlist_id = create_playlist(
             session=session,
-            user_id=session.me()["id"],
             playlist_name=name,
             description=re.split(r"(?<=[.!?])\s+", answer.summary.strip())[0][:300],
         )

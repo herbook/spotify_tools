@@ -69,7 +69,6 @@ def run_through_playlists(files, log_path):
             ):
                 playlist_id = create_playlist(
                     session=session,
-                    user_id=session.me()["id"],
                     playlist_name=playlist_name,
                     description=description,
                 )

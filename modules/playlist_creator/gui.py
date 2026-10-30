@@ -250,8 +250,12 @@ class SettingsDialog(QDialog):
 
     def save(self) -> None:
         """Write the credentials to ~/.spotipy, keeping any other keys already in the file."""
+        old_client_id = self.auth.get("CLIENT_ID")
         self.auth = {**self.auth, **{key: field.text().strip() for key, field in self.fields.items()}}
         save_auth(AUTH_PATH, self.auth)
+        # A cached token belongs to the app that issued it and is rejected as invalid_client under another app
+        if old_client_id and old_client_id != self.auth.get("CLIENT_ID"):
+            TOKEN_CACHE_PATH.unlink(missing_ok=True)
         self.accept()
 
 

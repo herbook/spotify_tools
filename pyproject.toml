@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spotify_tools"
-version = "2026.10.27"
+version = "2026.10.30"
 requires-python = ">=3.11"
 description = "Create Spotify playlists from Winamp exports or from AI suggestions based on seed songs"
 readme = "README.md"

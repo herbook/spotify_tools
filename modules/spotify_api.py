@@ -93,8 +93,9 @@ def spotify_session(client_id, client_secret, cache_path):
     return session
 
 
-def create_playlist(session, user_id, playlist_name, description):
-    playlist = session.user_playlist_create(user=user_id, name=playlist_name, public=False, description=description)
+def create_playlist(session, playlist_name, description):
+    # Spotify removed POST /users/{id}/playlists for development-mode apps, which now answer 403
+    playlist = session.current_user_playlist_create(name=playlist_name, public=False, description=description)
     return playlist["id"]
 
 
@@ -362,6 +363,12 @@ def get_song_uris(
 
         try:
             tracks = search_tracks(session=session, query=query)
+            # Spotify's API search is strict, so bracket text it does not know can push the right track out of the results
+            plain_query = " ".join(BRACKET_TEXT.sub(" ", query).split())
+            if plain_query != query and not any(
+                match_score(query=query, track=track, lenient=lenient) >= min_score for track in tracks
+            ):
+                tracks += search_tracks(session=session, query=plain_query)
         except (SpotifyException, RequestException) as e:
             if isinstance(e, SpotifyException) and e.http_status in FATAL_STATUSES:
                 raise
@@ -413,7 +420,17 @@ def get_playlist_items(session: spotipy.Spotify, playlist_id: str) -> list[dict]
     """Return all items of a playlist, in playlist order."""
     items = []
     while True:
-        page = session.playlist_items(playlist_id, limit=50, offset=len(items), additional_types=("track",))
+        try:
+            page = session.playlist_items(playlist_id, limit=50, offset=len(items), additional_types=("track",))
+        except SpotifyException as e:
+            if e.http_status == 403:  # noqa: PLR2004
+                # Development-mode apps may only read the items of playlists the user owns or collaborates on
+                msg = (
+                    "Spotify does not allow reading this playlist's songs. A Spotify app in Development Mode can only"
+                    " read playlists you own or collaborate on, so add its songs to a playlist of your own first."
+                )
+                raise SystemExit(msg) from e
+            raise
         items.extend(page["items"])
         if not page["next"] or not page["items"]:
             return items
